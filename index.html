@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>BMD - Bike Mileage Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+  <!-- Local Config -->
+  <script src="firebase-config.js"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+
+<div class="app">
+  <header class="header">
+    <div class="logo">BMD</div>
+    <button class="settings-btn" onclick="switchTab('settings')">
+      <i data-lucide="settings"></i>
+    </button>
+  </header>
+
+  <main class="content">
+
+    <!-- HOME SCREEN -->
+    <section id="home" class="screen active">
+      <div class="card streak-card">
+        <h3 id="streak">🔥 0 Day Streak</h3>
+        <button class="btn-add" onclick="document.getElementById('rideModal').classList.add('active')">
+          <i data-lucide="plus"></i> Add Ride
+        </button>
+      </div>
+
+      <div class="grid">
+        <div class="card stat-card">
+          <p>Total Earnings</p>
+          <h3 id="earn">₹0</h3>
+          <span class="trend" id="trend"></span>
+        </div>
+        <div class="card stat-card">
+          <p>Distance</p>
+          <h3 id="distance">0 km</h3>
+        </div>
+        <div class="card stat-card">
+          <p>Mileage</p>
+          <h3 id="mileage">0 km/l</h3>
+        </div>
+        <div class="card stat-card">
+          <p>Avg ₹/km</p>
+          <h3 id="avgKm">₹0</h3>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="progress-label">
+          <span>Monthly Goal Progress</span>
+          <span id="savingsText">₹0 / ₹8000</span>
+        </div>
+        <div class="progress-bg">
+          <div id="bar" class="progress-fill"></div>
+        </div>
+        <div style="margin-top: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 0.85rem;">
+          <div>
+            <p style="color: var(--text-muted)">Need / Day</p>
+            <h4 id="dailyNeed" style="color: var(--primary)">₹0</h4>
+          </div>
+          <div>
+            <p style="color: var(--text-muted)">Projected Days</p>
+            <h4 id="projection" style="color: var(--secondary)">0</h4>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-bottom: 15px; font-size: 1.1rem; display: flex; align-items: center; gap: 10px;">
+          <i data-lucide="line-chart" style="color: var(--primary)"></i> Earnings Trend
+        </h3>
+        <div class="chart-container">
+          <canvas id="homeWeeklyChart"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- MILEAGE SCREEN -->
+    <section id="mileage-tab" class="screen">
+      <div class="card">
+        <h3 style="margin-bottom: 5px;">New Petrol Entry</h3>
+        <p id="lastKMDisplay" style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">Previous Odometer: 0 km</p>
+        <form id="petrolForm">
+          <div class="form-group">
+            <label>Current Odometer Reading (KM)</label>
+            <input type="number" id="petrolKM" placeholder="e.g. 5420" required>
+          </div>
+          <div class="grid">
+            <div class="form-group">
+              <label>Litres</label>
+              <input type="number" id="litres" step="0.01" placeholder="e.g. 5.2" required>
+            </div>
+            <div class="form-group">
+              <label>Cost (₹)</label>
+              <input type="number" id="cost" placeholder="e.g. 550" required>
+            </div>
+          </div>
+          <button type="submit">Add Fuel Entry</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-bottom: 10px; font-size: 1rem;">Fuel History</h3>
+        <div class="scroll-x">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>KM</th>
+                <th>Litres</th>
+                <th>Mileage</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="petrolTable"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-bottom: 15px; font-size: 1rem;">Mileage Performance</h3>
+        <div class="chart-container">
+          <canvas id="mileageChart"></canvas>
+        </div>
+        <div style="margin-top: 20px; font-size: 0.8rem; color: var(--text-muted); background: rgba(255,255,255,0.03); padding: 12px; border-radius: 12px; line-height: 1.4;">
+          <p style="color: var(--primary); font-weight: 600; margin-bottom: 4px;">💡 How is mileage calculated?</p>
+          We use the "Fill-to-Fill" method:<br>
+          1. Fill tank to full, note current KM.<br>
+          2. Next time you fill to full, note new KM and Litres added.<br>
+          3. Mileage = (New KM - Old KM) / Litres added.
+        </div>
+      </div>
+    </section>
+
+    <!-- EXPENSES SCREEN -->
+    <section id="expenses-tab" class="screen">
+      <div class="card">
+        <h3 style="margin-bottom: 15px;">Add Expense</h3>
+        <form id="expenseForm">
+          <div class="grid">
+            <div class="form-group">
+              <label>Category</label>
+              <select id="expenseCategory" style="width: 100%; padding: 14px; background: rgba(15, 23, 42, 0.5); border: 1px solid var(--border); border-radius: 16px; color: var(--text); font-family: inherit;">
+                <option value="Food">Food</option>
+                <option value="Maintenance">Maintenance</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Amount (₹)</label>
+              <input type="number" id="expenseAmount" placeholder="Amount" required>
+            </div>
+          </div>
+          <button type="submit">Log Expense</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-bottom: 15px;">Expense Distribution</h3>
+        <div class="chart-container pie-container">
+          <canvas id="expensePieChart"></canvas>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-bottom: 10px; font-size: 1rem;">Recent Expenses</h3>
+        <div class="scroll-x">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Item</th>
+                <th>Cost</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="expenseTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- INSIGHTS SCREEN -->
+    <section id="insights-tab" class="screen">
+      <div class="card">
+        <h3 style="margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
+          <i data-lucide="zap" style="color: var(--warning)"></i> Smart Insights
+        </h3>
+        <div id="insightList">
+          <!-- Insights injected here -->
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-bottom: 15px;">Earnings vs Expenses</h3>
+        <div class="chart-container">
+          <canvas id="insightComparisonChart"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- SETTINGS SCREEN -->
+    <section id="settings" class="screen">
+      <div class="card">
+        <h3 style="margin-bottom: 20px;">Configuration</h3>
+        <div class="form-group">
+          <label>Monthly Savings Goal (₹)</label>
+          <input type="number" id="monthlyGoalInput" placeholder="8000">
+        </div>
+        <div class="form-group">
+          <label>Automated Savings %</label>
+          <input type="number" id="savingsPercentInput" placeholder="30">
+        </div>
+        <div class="form-group">
+          <label>Initial Odometer (KM)</label>
+          <input type="number" id="initialKMInput" placeholder="0">
+          <small style="color: var(--text-muted); display: block; margin-top: 5px;">Set this to your odometer reading at your very first fill-up to enable mileage calculation for the first entry.</small>
+        </div>
+        <button onclick="saveSettings()">Save Configuration</button>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-bottom: 15px;">Data Management</h3>
+        <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 15px;">Clear all local data and reset the app.</p>
+        <button onclick="resetData()" style="background: var(--danger); box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);">Reset All Data</button>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Bottom Navigation -->
+  <nav class="bottom-nav">
+    <div class="nav-item active" onclick="switchTab('home')" id="nav-home">
+      <i data-lucide="home"></i>
+      <span>Home</span>
+    </div>
+    <div class="nav-item" onclick="switchTab('mileage-tab')" id="nav-mileage-tab">
+      <i data-lucide="fuel"></i>
+      <span>Mileage</span>
+    </div>
+    <div class="nav-item" onclick="switchTab('expenses-tab')" id="nav-expenses-tab">
+      <i data-lucide="wallet"></i>
+      <span>Expenses</span>
+    </div>
+    <div class="nav-item" onclick="switchTab('insights-tab')" id="nav-insights-tab">
+      <i data-lucide="bar-chart-3"></i>
+      <span>Insights</span>
+    </div>
+  </nav>
+
+</div>
+
+<!-- Ride Modal -->
+<div id="rideModal" class="modal">
+  <div class="modal-content card">
+    <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+      <h3>Log Daily Ride</h3>
+      <span onclick="document.getElementById('rideModal').classList.remove('active')" style="cursor: pointer; padding: 5px;"><i data-lucide="x"></i></span>
+    </div>
+    <form id="rideForm">
+      <div class="form-group">
+        <label>Date</label>
+        <input type="date" id="rideDate">
+      </div>
+      <div class="grid">
+        <div class="form-group">
+          <label>Start KM</label>
+          <input type="number" id="startKM" placeholder="Start" required>
+        </div>
+        <div class="form-group">
+          <label>End KM</label>
+          <input type="number" id="endKM" placeholder="End" required>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Earnings (₹)</label>
+        <input type="number" id="earnings" placeholder="Total made today" required>
+      </div>
+      <button type="submit">Save Ride</button>
+    </form>
+  </div>
+</div>
+
+<script src="app.js"></script>
+<script>
+  // Initialize icons
+  lucide.createIcons();
+</script>
+</body>
+</html>

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mileage</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="app">
+<header class="header">⛽ Mileage</header>
+<main class="content">
+
+  <!-- Petrol Entry -->
+  <div class="card">
+    <form id="petrolForm">
+      <input type="number" id="petrolKM" placeholder="KM at Fill" required>
+      <input type="number" id="litres" placeholder="Litres" required>
+      <input type="number" id="cost" placeholder="Cost ₹" required>
+      <button>Add Petrol</button>
+    </form>
+  </div>
+
+  <!-- Current Mileage -->
+  <div class="card">
+    <h3 id="currentMileage">Current Mileage: 0 km/l</h3>
+  </div>
+
+  <!-- Petrol History Table -->
+  <div class="card">
+    <h3>Petrol History</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>KM</th>
+          <th>Litres</th>
+          <th>Cost</th>
+          <th>Mileage</th>
+        </tr>
+      </thead>
+      <tbody id="petrolTable"></tbody>
+    </table>
+  </div>
+
+  <!-- Mileage Chart -->
+  <div class="card">
+    <canvas id="mileageChart"></canvas>
+  </div>
+
+</main>
+
+<nav class="bottom-nav">
+  <a href="index.html">🏠</a>
+  <a href="mileage.html">⛽</a>
+  <a href="expenses.html">💰</a>
+  <a href="insights.html">📊</a>
+</nav>
+
+<script src="app.js"></script>
+</body>
+</html>

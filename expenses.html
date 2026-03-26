@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Expenses</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+<div class="app">
+<header class="header">💰 Expenses</header>
+<main class="content">
+
+  <!-- Add Expenses -->
+  <div class="card">
+    <form id="expenseForm">
+      <input type="number" id="foodExpense" placeholder="Food Expense" required>
+      <input type="number" id="otherExpense" placeholder="Other Expense" required>
+      <button>Add Expense</button>
+    </form>
+  </div>
+
+  <!-- Monthly Goal -->
+  <div class="card highlight">
+    <p>Monthly Goal Progress</p>
+    <div class="progress"><div id="goalBar"></div></div>
+  </div>
+
+  <!-- Pie Chart -->
+  <div class="card">
+    <canvas id="pieChart"></canvas>
+  </div>
+
+</main>
+
+<nav class="bottom-nav">
+  <a href="index.html">🏠</a>
+  <a href="mileage.html">⛽</a>
+  <a href="expenses.html">💰</a>
+  <a href="insights.html">📊</a>
+</nav>
+
+<script src="app.js"></script>
+</body>
+</html>

@@ -8,55 +8,99 @@
 </head>
 <body>
 
+<!-- Login Screen -->
+<div class="login-screen" id="loginScreen">
+  <div class="login-card card">
+    <div class="rider-icon" style="font-size: 3.5rem; margin-bottom: 20px;">🏍️</div>
+    <div class="logo">BMD</div>
+    <p class="subtitle">Track. Ride. Earn.</p>
+    <button onclick="login()" class="google-btn" aria-label="Login with Google">
+      <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/pwaa/google.svg" class="google-logo" alt="Google">
+      Continue with Google
+    </button>
+  </div>
+</div>
+
 <div class="app">
-<header class="header">⛽ Mileage</header>
-<main class="content">
+  <header class="header">⛽ Mileage</header>
+  <main class="content">
 
-  <!-- Petrol Entry -->
-  <div class="card">
-    <form id="petrolForm">
-      <input type="number" id="petrolKM" placeholder="KM at Fill" required>
-      <input type="number" id="litres" placeholder="Litres" required>
-      <input type="number" id="cost" placeholder="Cost ₹" required>
-      <button>Add Petrol</button>
-    </form>
-  </div>
+    <!-- Petrol Entry -->
+    <div class="card">
+      <h3 style="margin-bottom: 15px;">New Petrol Entry</h3>
+      <p id="lastKMDisplay" style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">Previous Odometer: 0 km</p>
+      <form id="petrolForm">
+        <div class="form-group">
+          <label>Current Odometer Reading (KM)</label>
+          <input type="number" id="petrolKM" placeholder="e.g. 5420" required>
+        </div>
+        <div class="grid">
+          <div class="form-group">
+            <label>Litres</label>
+            <input type="number" id="litres" step="0.01" placeholder="e.g. 5.2" required>
+          </div>
+          <div class="form-group">
+            <label>Cost (₹)</label>
+            <input type="number" id="cost" placeholder="e.g. 550" required>
+          </div>
+        </div>
+        <button type="submit">Add Fuel Entry</button>
+      </form>
+    </div>
 
-  <!-- Current Mileage -->
-  <div class="card">
-    <h3 id="currentMileage">Current Mileage: 0 km/l</h3>
-  </div>
+    <!-- Fuel History -->
+    <div class="card">
+      <h3 style="margin-bottom: 10px; font-size: 1rem;">Fuel History</h3>
+      <div class="scroll-x">
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>KM</th>
+              <th>Litres</th>
+              <th>Mileage</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="petrolTable"></tbody>
+        </table>
+      </div>
+    </div>
 
-  <!-- Petrol History Table -->
-  <div class="card">
-    <h3>Petrol History</h3>
-    <table>
-      <thead>
-        <tr>
-          <th>KM</th>
-          <th>Litres</th>
-          <th>Cost</th>
-          <th>Mileage</th>
-        </tr>
-      </thead>
-      <tbody id="petrolTable"></tbody>
-    </table>
-  </div>
+    <!-- Mileage Chart -->
+    <div class="card">
+      <h3 style="margin-bottom: 15px; font-size: 1rem;">Mileage Performance</h3>
+      <div class="chart-container">
+        <canvas id="mileageChart"></canvas>
+      </div>
+    </div>
 
-  <!-- Mileage Chart -->
-  <div class="card">
-    <canvas id="mileageChart"></canvas>
-  </div>
+  </main>
 
-</main>
+  <nav class="bottom-nav">
+    <a href="index.html" class="nav-item">
+      <i data-lucide="home"></i>
+      <span>Home</span>
+    </a>
+    <a href="mileage.html" class="nav-item active">
+      <i data-lucide="fuel"></i>
+      <span>Mileage</span>
+    </a>
+    <a href="expenses.html" class="nav-item">
+      <i data-lucide="wallet"></i>
+      <span>Expenses</span>
+    </a>
+    <a href="insights.html" class="nav-item">
+      <i data-lucide="bar-chart-3"></i>
+      <span>Insights</span>
+    </a>
+  </nav>
+</div>
 
-<nav class="bottom-nav">
-  <a href="index.html">🏠</a>
-  <a href="mileage.html">⛽</a>
-  <a href="expenses.html">💰</a>
-  <a href="insights.html">📊</a>
-</nav>
-
-<script src="app.js"></script>
+<!-- Dependencies -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<!-- App logic (Modular) -->
+<script type="module" src="app.js?v=1.5"></script>
 </body>
 </html>

@@ -1,0 +1,12 @@
+{
+  "name": "bmd-app",
+  "version": "1.0.0",
+  "description": "Bike Mileage Dashboard",
+  "scripts": {
+    "start": "npx serve ."
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "serve": "^14.2.1"
+  }
+}

@@ -8,35 +8,74 @@
 </head>
 <body>
 
+<!-- Login Screen -->
+<div class="login-screen" id="loginScreen">
+  <div class="login-card card">
+    <div class="rider-icon" style="font-size: 3.5rem; margin-bottom: 20px;">🏍️</div>
+    <div class="logo">BMD</div>
+    <p class="subtitle">Track. Ride. Earn.</p>
+    <button onclick="login()" class="google-btn" aria-label="Login with Google">
+      <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/pwaa/google.svg" class="google-logo" alt="Google">
+      Continue with Google
+    </button>
+  </div>
+</div>
+
 <div class="app">
-<header class="header">📊 Insights</header>
-<main class="content">
+  <header class="header">📊 Insights</header>
+  <main class="content">
 
-  <!-- Weekly / Monthly Analytics -->
-  <div class="card">
-    <h3>Weekly Earnings</h3>
-    <canvas id="weeklyInsightChart"></canvas>
-  </div>
+    <div class="card">
+      <h3 style="margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
+        <i data-lucide="zap" style="color: var(--warning)"></i> Financial Summary
+      </h3>
+      <div class="insights-grid" id="financial-metrics">
+        <!-- Cards injected by JS -->
+      </div>
+    </div>
 
-  <div class="card">
-    <h3>Monthly Trends</h3>
-    <canvas id="monthlyInsightChart"></canvas>
-  </div>
+    <div class="card">
+      <h3 style="margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
+        <i data-lucide="sparkles" style="color: var(--primary)"></i> Smart Insights
+      </h3>
+      <div id="insightList">
+        <!-- Insights injected here -->
+      </div>
+    </div>
 
-  <div class="card">
-    <h3>Smart Messages</h3>
-    <ul id="insightList"></ul>
-  </div>
+    <div class="card">
+      <h3 style="margin-bottom: 15px;">Earnings vs Expenses</h3>
+      <div class="chart-container">
+        <canvas id="insightComparisonChart"></canvas>
+      </div>
+    </div>
 
-</main>
+  </main>
 
-<nav class="bottom-nav">
-  <a href="index.html">🏠</a>
-  <a href="mileage.html">⛽</a>
-  <a href="expenses.html">💰</a>
-  <a href="insights.html">📊</a>
-</nav>
+  <nav class="bottom-nav">
+    <a href="index.html" class="nav-item">
+      <i data-lucide="home"></i>
+      <span>Home</span>
+    </a>
+    <a href="mileage.html" class="nav-item">
+      <i data-lucide="fuel"></i>
+      <span>Mileage</span>
+    </a>
+    <a href="expenses.html" class="nav-item">
+      <i data-lucide="wallet"></i>
+      <span>Expenses</span>
+    </a>
+    <a href="insights.html" class="nav-item active">
+      <i data-lucide="bar-chart-3"></i>
+      <span>Insights</span>
+    </a>
+  </nav>
+</div>
 
-<script src="app.js"></script>
+<!-- Dependencies -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<!-- App logic (Modular) -->
+<script type="module" src="app.js?v=1.5"></script>
 </body>
 </html>

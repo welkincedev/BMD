@@ -34,6 +34,97 @@ body {
   overflow: hidden;
 }
 
+/* Auth & Login */
+.login-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle at top right, #3b0764, #000328, #000);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 5000;
+  transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+body.logged-in .login-screen {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+body:not(.logged-in) .app {
+  display: none;
+}
+
+.login-card {
+  text-align: center;
+  max-width: 400px;
+  width: 90%;
+  padding: 50px 30px;
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 32px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+.login-card .logo {
+  font-size: 4rem;
+  font-weight: 800;
+  margin-bottom: 8px;
+  background: linear-gradient(135deg, #60a5fa, #a855f7, #ec4899);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: -2px;
+}
+
+.login-card .subtitle {
+  color: var(--text-muted);
+  font-size: 1.1rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  font-weight: 400;
+  margin-bottom: 40px;
+}
+
+.google-btn {
+  background: white;
+  color: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  padding: 18px;
+  border-radius: 20px;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+  transition: all 0.3s;
+  box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+}
+
+.google-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 15px 30px rgba(0,0,0,0.3);
+  background: #f8fafc;
+}
+
+.google-logo {
+  width: 20px;
+  height: 20px;
+}
+
+.btn-danger {
+  background: linear-gradient(135deg, #ef4444, #991b1b);
+  box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
+  margin-top: 20px;
+}
+
 .app {
   max-width: 480px;
   margin: 0 auto;
@@ -41,7 +132,7 @@ body {
   display: flex;
   flex-direction: column;
   background: rgba(15, 23, 42, 0.4);
-  box-shadow: 0 0 100px rgba(0,0,0,0.5);
+  box-shadow: 0 0 100px rgba(0, 0, 0, 0.5);
   position: relative;
 }
 
@@ -88,7 +179,8 @@ body {
 .content {
   flex: 1;
   padding: 16px;
-  padding-top: 80px; /* Space for fixed header */
+  padding-top: 80px;
+  /* Space for fixed header */
   padding-bottom: 100px;
   overflow-y: auto;
   display: flex;
@@ -109,8 +201,14 @@ body {
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Glass Cards */
@@ -134,31 +232,51 @@ body {
   background: linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(20, 184, 166, 0.2));
   border: 1px solid rgba(34, 197, 94, 0.3);
 }
-.card-green h3, .card-green .stat-value { color: #4ade80; }
+
+.card-green h3,
+.card-green .stat-value {
+  color: #4ade80;
+}
 
 .card-blue {
   background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(37, 99, 235, 0.2));
   border: 1px solid rgba(59, 130, 246, 0.3);
 }
-.card-blue h3, .card-blue .stat-value { color: #60a5fa; }
+
+.card-blue h3,
+.card-blue .stat-value {
+  color: #60a5fa;
+}
 
 .card-purple {
   background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(168, 85, 247, 0.2));
   border: 1px solid rgba(139, 92, 246, 0.3);
 }
-.card-purple h3, .card-purple .stat-value { color: #c084fc; }
+
+.card-purple h3,
+.card-purple .stat-value {
+  color: #c084fc;
+}
 
 .card-orange {
   background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(239, 68, 68, 0.2));
   border: 1px solid rgba(245, 158, 11, 0.3);
 }
-.card-orange h3, .card-orange .stat-value { color: #fbbf24; }
+
+.card-orange h3,
+.card-orange .stat-value {
+  color: #fbbf24;
+}
 
 .card-teal {
   background: linear-gradient(135deg, rgba(20, 184, 166, 0.2), rgba(16, 185, 129, 0.2));
   border: 1px solid rgba(20, 184, 166, 0.3);
 }
-.card-teal h3, .card-teal .stat-value { color: #2dd4bf; }
+
+.card-teal h3,
+.card-teal .stat-value {
+  color: #2dd4bf;
+}
 
 .streak-card {
   background: linear-gradient(135deg, rgba(99, 102, 241, 0.3), rgba(168, 85, 247, 0.3));
@@ -210,8 +328,13 @@ body {
   font-weight: 600;
 }
 
-.trend.up { color: var(--primary); }
-.trend.down { color: var(--danger); }
+.trend.up {
+  color: var(--primary);
+}
+
+.trend.down {
+  color: var(--danger);
+}
 
 /* Progress Bar */
 .progress-container {
@@ -377,7 +500,7 @@ th {
 td {
   padding: 12px 10px;
   font-size: 0.9rem;
-  border-bottom: 1px solid rgba(255,255,255,0.05);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .action-btn {
@@ -389,8 +512,13 @@ td {
   font-size: 1.2rem;
 }
 
-.action-btn.delete:hover { color: var(--danger); }
-.action-btn.edit:hover { color: var(--secondary); }
+.action-btn.delete:hover {
+  color: var(--danger);
+}
+
+.action-btn.edit:hover {
+  color: var(--secondary);
+}
 
 /* Insights */
 .insight-msg {
@@ -410,7 +538,7 @@ td {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255,255,255,0.08);
+  background: rgba(255, 255, 255, 0.08);
   border-radius: 10px;
 }
 
@@ -440,8 +568,6 @@ td {
   font-weight: 700;
 }
 
-/* Removed old insight classes - moved to global card-system */
-
 /* Modal */
 .modal {
   display: none;
@@ -450,7 +576,7 @@ td {
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0,0,0,0.8);
+  background: rgba(0, 0, 0, 0.8);
   backdrop-filter: blur(8px);
   z-index: 2000;
   align-items: center;
@@ -458,9 +584,30 @@ td {
   padding: 20px;
 }
 
-.modal.active { display: flex; }
+.modal.active {
+  display: flex;
+}
 
 .modal-content {
   width: 100%;
   max-width: 400px;
+}
+
+/* Loading Overlay */
+body.loading::after {
+  content: "Syncing Data...";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(15, 23, 42, 0.82);
+  backdrop-filter: blur(12px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+  font-size: 1.1rem;
+  z-index: 9999;
 }

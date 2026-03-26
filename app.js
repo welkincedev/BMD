@@ -1,5 +1,35 @@
+import { 
+    db, auth, provider,
+    collection, doc, addDoc, getDoc, getDocs, setDoc, deleteDoc, 
+    onSnapshot, query, where, orderBy, serverTimestamp, writeBatch,
+    signInWithPopup, onAuthStateChanged, signOut
+} from "./firebase.js";
+
 // =====================
-// FIREBASE & STATE
+// USER IDENTITY & AUTH
+// =====================
+let userId = null;
+
+window.login = async () => {
+    try {
+        await signInWithPopup(auth, provider);
+    } catch (err) {
+        console.error("Login failed:", err);
+        alert("Login failed. Check console.");
+    }
+};
+
+window.logout = async () => {
+    try {
+        await signOut(auth);
+        location.reload(); 
+    } catch (err) {
+        console.error("Logout failed:", err);
+    }
+};
+
+// =====================
+// STATE
 // =====================
 let rides = [];
 let petrols = [];
@@ -10,56 +40,9 @@ let settings = {
     initialKM: 0
 };
 
-let db = null;
 let isFirebaseReady = false;
 
-async function initFirebase() {
-    if (typeof firebase === 'undefined' || !window.firebaseConfig || window.firebaseConfig.apiKey === "YOUR_API_KEY") {
-        console.warn("Firebase not configured. Using LocalStorage fallback.");
-        loadLocalData();
-        return;
-    }
-
-    try {
-        firebase.initializeApp(window.firebaseConfig);
-        db = firebase.firestore();
-        isFirebaseReady = true;
-        console.log("Firebase Initialized!");
-        
-        await syncData();
-    } catch (err) {
-        console.error("Firebase init failed:", err);
-        loadLocalData();
-    }
-}
-
-function loadLocalData() {
-    rides = JSON.parse(localStorage.getItem("bmd_rides")) || [];
-    petrols = JSON.parse(localStorage.getItem("bmd_petrols")) || [];
-    expenses = JSON.parse(localStorage.getItem("bmd_expenses")) || [];
-    settings = JSON.parse(localStorage.getItem("bmd_settings")) || settings;
-}
-
-async function syncData() {
-    // 1. Load from Firestore
-    const snapshot = await db.collection('data').doc('v1').get();
-    
-    if (!snapshot.exists) {
-        // 2. First time? Migrate local data to Firebase
-        console.log("No remote data. Migrating local data...");
-        loadLocalData();
-        await saveData();
-    } else {
-        const data = snapshot.data();
-        rides = data.rides || [];
-        petrols = data.petrols || [];
-        expenses = data.expenses || [];
-        settings = data.settings || settings;
-        console.log("Data synced from Firebase.");
-    }
-}
-
-// Global chart instances to avoid duplication
+// Global chart instances
 const charts = {
     homeWeekly: null,
     mileage: null,
@@ -67,533 +50,567 @@ const charts = {
     comparison: null
 };
 
-// =====================
-// TAB SWITCHING
-// =====================
-function switchTab(tabId) {
-    // Hide all screens
-    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-    // Show target screen
-    const target = document.getElementById(tabId) || document.getElementById('home');
-    target.classList.add('active');
+// 🛠 Helpers
+window.setText = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.innerText = val;
+};
+window.setHtml = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = val;
+};
 
-    // Update Nav
-    document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
-    const navItem = document.getElementById(`nav-${tabId}`);
-    if (navItem) navItem.classList.add('active');
-
-    // Re-render and re-init icons
-    render();
-    if (window.lucide) lucide.createIcons();
-    
-    // Scroll to top
-    document.querySelector('.content').scrollTop = 0;
-}
-
-// =====================
-// DATA SAVING
-// =====================
-async function saveData() {
-    // Always save to LocalStorage for offline/fallback
-    localStorage.setItem("bmd_rides", JSON.stringify(rides));
-    localStorage.setItem("bmd_petrols", JSON.stringify(petrols));
-    localStorage.setItem("bmd_expenses", JSON.stringify(expenses));
-    localStorage.setItem("bmd_settings", JSON.stringify(settings));
-
-    if (isFirebaseReady) {
-        try {
-            await db.collection('data').doc('v1').set({
-                rides, petrols, expenses, settings,
-                lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
-            });
-        } catch (err) {
-            console.error("Firebase save failed:", err);
+// Safe Icon Creation
+const safeCreateIcons = () => {
+    try {
+        if (window.lucide) {
+            console.log("Lucide: Scanning icons...");
+            window.lucide.createIcons();
+        } else {
+            console.warn("Lucide: Library not found in window.");
         }
+    } catch (err) {
+        console.warn("Lucide: Scan failed:", err);
+    }
+};
+
+// =====================
+// FIREBASE REAL-TIME SYNC
+// =====================
+
+async function initFirebase() {
+    document.body.classList.add("loading");
+    
+    // Fail-safe: Remove loading screen after 3 seconds if it hangs
+    setTimeout(() => {
+        if (document.body.classList.contains("loading")) {
+            console.warn("Initial sync timed out. Proceeding with available data.");
+            document.body.classList.remove("loading");
+            render();
+        }
+    }, 3000);
+
+    if (!db) {
+        console.warn("Firebase not initialized. Using LocalStorage fallback.");
+        loadLocalData();
+        document.body.classList.remove("loading");
+        render();
+        return;
+    }
+
+    try {
+        isFirebaseReady = true;
+        setupRealtimeListeners();
+    } catch (err) {
+        console.error("Firebase sync failed:", err);
+        loadLocalData();
+        document.body.classList.remove("loading");
+        render();
     }
 }
 
-// =====================
-// CALCULATIONS
-// =====================
-
-function getTotals() {
-    const totalEarnings = rides.reduce((sum, r) => sum + r.earnings, 0);
-    const totalDistance = rides.reduce((sum, r) => sum + (r.endKM - r.startKM), 0);
-    const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
-    const savings = totalEarnings * (settings.savingPercent / 100);
-    const avgKmCost = totalDistance ? (totalEarnings / totalDistance).toFixed(2) : 0;
-    
-    const totalPetrolCost = petrols.reduce((sum, p) => sum + p.cost, 0);
-    const netProfit = totalEarnings - totalExpenses - totalPetrolCost;
-
-    return { totalEarnings, totalDistance, totalExpenses, savings, avgKmCost, netProfit, totalPetrolCost };
-}
-
-function getStreak() {
-    if (!rides.length) return 0;
-    const sorted = [...new Set(rides.map(r => r.date))].sort().reverse();
-    let streak = 0;
-    let today = new Date();
-    today.setHours(0,0,0,0);
-
-    for (let i = 0; i < sorted.length; i++) {
-        let entryDate = new Date(sorted[i]);
-        entryDate.setHours(0,0,0,0);
-        
-        let diff = Math.floor((today - entryDate) / (1000 * 60 * 60 * 24));
-        
-        if (diff === streak) {
-            streak++;
-        } else if (diff > streak) {
-            break;
+function setupRealtimeListeners() {
+    let loadedCount = 0;
+    const checkLoaded = () => {
+        loadedCount++;
+        if (loadedCount >= 4) {
+            document.body.classList.remove("loading");
+            render();
         }
-    }
-    return streak;
-}
+    };
 
-function getMileage() {
-    if (petrols.length === 0) return 0;
-    const sorted = [...petrols].sort((a, b) => a.km - b.km);
-    
-    if (petrols.length === 1) {
-        if (settings.initialKM > 0 && sorted[0].km > settings.initialKM) {
-            return ((sorted[0].km - settings.initialKM) / sorted[0].litres).toFixed(1);
+    const handleError = (type, err) => {
+        console.error(`Sync error (${type}):`, err);
+        checkLoaded(); 
+    };
+
+    // 1. Rides
+    onSnapshot(query(collection(db, "users", userId, "rides"), orderBy("date", "desc")), (snap) => {
+        rides = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        if (loadedCount < 4) checkLoaded(); else render();
+    }, (err) => handleError("rides", err));
+
+    // 2. Petrols
+    onSnapshot(query(collection(db, "users", userId, "petrols"), orderBy("km", "asc")), (snap) => {
+        petrols = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        if (loadedCount < 4) checkLoaded(); else render();
+    }, (err) => handleError("petrols", err));
+
+    // 3. Expenses
+    onSnapshot(query(collection(db, "users", userId, "expenses"), orderBy("date", "desc")), (snap) => {
+        expenses = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        if (loadedCount < 4) checkLoaded(); else render();
+    }, (err) => handleError("expenses", err));
+
+    // 4. Settings
+    onSnapshot(doc(db, "users", userId, "config", "settings"), (snap) => {
+        if (snap.exists()) {
+            settings = snap.data();
+        } else {
+            console.log("No remote settings. Uploading defaults...");
+            loadLocalData();
+            uploadAllData(); 
         }
-        return 0;
-    }
-    
-    const last = sorted[sorted.length - 1];
-    const prev = sorted[sorted.length - 2];
-    return ((last.km - prev.km) / last.litres).toFixed(1);
+        if (loadedCount < 4) checkLoaded(); else render();
+    }, (err) => handleError("settings", err));
 }
 
-function getGoalStats(currentSavings) {
-    const today = new Date();
-    const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
-    const remainingDays = lastDayOfMonth - today.getDate() + 1;
-    
-    const remainingGoal = Math.max(0, settings.monthlyGoal - currentSavings);
-    const dailyNeeded = remainingDays > 0 ? (remainingGoal / remainingDays).toFixed(0) : 0;
-    
-    const avgPerDay = currentSavings / today.getDate();
-    const projectedDays = avgPerDay > 0 ? Math.ceil(settings.monthlyGoal / avgPerDay) : "~";
-    
-    return { dailyNeeded, projectedDays, remainingGoal };
+function loadLocalData() {
+    rides = JSON.parse(localStorage.getItem("bmd_rides")) || [];
+    petrols = JSON.parse(localStorage.getItem("bmd_petrols")) || [];
+    expenses = JSON.parse(localStorage.getItem("bmd_expenses")) || [];
+    const localSet = JSON.parse(localStorage.getItem("bmd_settings"));
+    if (localSet) settings = localSet;
 }
 
-// =====================
-// UTILS & PERFORMANCE
-// =====================
-function loadScript(url) {
-    return new Promise((resolve, reject) => {
-        if (document.querySelector(`script[src="${url}"]`)) return resolve();
-        const script = document.createElement('script');
-        script.src = url;
-        script.onload = resolve;
-        script.onerror = reject;
-        document.head.appendChild(script);
+async function uploadAllData() {
+    if (!isFirebaseReady) return;
+    const batch = writeBatch(db);
+    
+    // Upload settings
+    const setRef = doc(db, "users", userId, "config", "settings");
+    batch.set(setRef, settings);
+    
+    // Upload collection items
+    rides.forEach(r => {
+        const ref = doc(collection(db, "users", userId, "rides"));
+        batch.set(ref, r);
     });
+    
+    petrols.forEach(p => {
+        const ref = doc(collection(db, "users", userId, "petrols"));
+        batch.set(ref, p);
+    });
+
+    expenses.forEach(e => {
+        const ref = doc(collection(db, "users", userId, "expenses"));
+        batch.set(ref, e);
+    });
+
+    try {
+        await batch.commit();
+        console.log("Initial data upload complete.");
+    } catch (err) {
+        console.error("Initial upload failed:", err);
+    }
 }
 
 // =====================
-// RENDER UI
+// UI LOGIC
 // =====================
+
+window.switchTab = (tabId) => {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    
+    const target = document.getElementById(tabId);
+    if (target) target.classList.add('active');
+    
+    const navItem = document.getElementById('nav-' + tabId);
+    if (navItem) navItem.classList.add('active');
+    
+    render();
+};
 
 function render() {
-    const totals = getTotals();
-    const streak = getStreak();
-    const mileage = getMileage();
-    
-    // Use requestAnimationFrame to split rendering tasks
-    requestAnimationFrame(() => {
-        // Home Stats
-        setText('earn', `₹${totals.totalEarnings.toLocaleString()}`);
-        setText('distance', `${totals.totalDistance} km`);
-        setText('mileage', `${mileage} km/l`);
-        setText('avgKm', `₹${totals.avgKmCost}/km`);
-        setText('streak', `🔥 ${streak} Day Streak`);
-
-        // Mileage Context
-        setText('lastKMDisplay', `Previous Odometer: ${settings.initialKM} km`);
-
-        // Goal
-        const goal = getGoalStats(totals.savings);
-        setText('savingsText', `₹${Math.floor(totals.savings)} / ₹${settings.monthlyGoal}`);
-        setText('dailyNeed', `₹${goal.dailyNeeded}`);
-        setText('projection', goal.projectedDays);
-        const bar = document.getElementById('bar');
-        if (bar) bar.style.width = `${Math.min(100, (totals.savings / settings.monthlyGoal * 100))}%`;
-
-        // Trend
-        const trendEl = document.getElementById('trend');
-        if (trendEl && rides.length > 1) {
-            const last = rides[rides.length - 1].earnings;
-            const prev = rides[rides.length - 2].earnings;
-            if (last > prev) trendEl.innerHTML = '<span class="up">↑ Rising</span>';
-            else if (last < prev) trendEl.innerHTML = '<span class="down">↓ Falling</span>';
-            else trendEl.innerHTML = '<span>→ Stable</span>';
+    console.log("--- Starting Render Cycle ---");
+    const safeRun = (name, fn) => {
+        try {
+            fn();
+        } catch (err) {
+            console.error(`Render Error [${name}]:`, err);
         }
+    };
 
-        // Tables & Insights (Non-blocking)
-        setTimeout(() => {
-            renderPetrolTable();
-            renderExpenseTable();
-            renderInsights();
-            renderCharts();
-        }, 0);
-    });
-
-    // Form Defaults
-    const dateInput = document.getElementById('rideDate');
-    if (dateInput && !dateInput.value) dateInput.value = new Date().toISOString().split('T')[0];
+    safeRun("Dashboard", updateDashboard);
+    safeRun("PetrolUI", updatePetrolUI);
+    safeRun("ExpenseUI", updateExpenseUI);
+    safeRun("InsightsUI", updateInsightsUI);
+    safeRun("Charts", initCharts);
+    safeRun("Icons", safeCreateIcons);
+    
+    // Final delay-synced icon check
+    setTimeout(safeCreateIcons, 500);
 }
 
-function setText(id, text) {
-    const el = document.getElementById(id);
-    if (el) el.innerText = text;
+function updateDashboard() {
+    const totalEarn = rides.reduce((sum, r) => sum + Number(r.earnings), 0);
+    const totalDist = rides.reduce((sum, r) => sum + (Number(r.endKM) - Number(r.startKM)), 0);
+    
+    setText('earn', `₹${totalEarn.toLocaleString()}`);
+    setText('distance', `${totalDist.toLocaleString()} km`);
+    
+    const avgKm = totalDist > 0 ? (totalEarn / totalDist).toFixed(2) : 0;
+    setText('avgKm', `₹${avgKm}`);
+    
+    const latestLitres = petrols.length > 0 ? petrols[petrols.length - 1].litres : 0;
+    const latestMileage = petrols.length > 0 ? calculateMileage(petrols.length - 1).toFixed(1) : 0;
+    setText('mileage', `${latestMileage} km/l`);
+
+    // Goal Progress
+    const currentProgress = (totalEarn / settings.monthlyGoal) * 100;
+    const bar = document.getElementById('bar');
+    if (bar) bar.style.width = Math.min(currentProgress, 100) + '%';
+    setText('savingsText', `₹${totalEarn.toLocaleString()} / ₹${settings.monthlyGoal.toLocaleString()}`);
+    
+    // Projections
+    const daysLeft = 30 - new Date().getDate();
+    const needed = Math.max(0, settings.monthlyGoal - totalEarn);
+    const dailyNeed = daysLeft > 0 ? (needed / daysLeft).toFixed(0) : 0;
+    setText('dailyNeed', `₹${dailyNeed}`);
+    setText('projection', daysLeft);
+
+    // Streak
+    const streak = calculateStreak(rides);
+    setText('streak', `🔥 ${streak} Day Streak`);
 }
 
-function renderPetrolTable() {
+function updatePetrolUI() {
     const tbody = document.getElementById('petrolTable');
     if (!tbody) return;
     tbody.innerHTML = '';
     
-    const sorted = [...petrols].sort((a,b) => new Date(b.date) - new Date(a.date));
-    
-    sorted.forEach((p) => {
-        const kmSorted = [...petrols].sort((a,b) => a.km - b.km);
-        const idxInKm = kmSorted.findIndex(item => item.id === p.id);
-        let m = "-";
-        if (idxInKm > 0) {
-            m = ((kmSorted[idxInKm].km - kmSorted[idxInKm-1].km) / kmSorted[idxInKm].litres).toFixed(1);
-        } else if (settings.initialKM > 0 && kmSorted[0].km > settings.initialKM) {
-            m = ((kmSorted[0].km - settings.initialKM) / kmSorted[0].litres).toFixed(1);
-        }
-
-        tbody.innerHTML += `
-            <tr>
-                <td>${formatDate(p.date)}</td>
-                <td>${p.km}</td>
-                <td>${p.litres}L</td>
-                <td><span style="color:var(--primary)">${m}</span></td>
-                <td style="text-align:right">
-                    <button class="action-btn delete" onclick="deleteEntry('petrol', ${p.id})" aria-label="Delete petrol entry"><i data-lucide="trash-2"></i></button>
-                </td>
-            </tr>
+    petrols.forEach((p, i) => {
+        const mil = calculateMileage(i).toFixed(1);
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${new Date(p.date || Date.now()).toLocaleDateString()}</td>
+            <td>${p.km}</td>
+            <td>${p.litres}L</td>
+            <td>${mil}</td>
+            <td><button class="action-btn" onclick="deleteEntry('petrol', '${p.id}')">×</button></td>
         `;
+        tbody.appendChild(tr);
     });
+
+    const lastKM = petrols.length > 0 ? petrols[petrols.length-1].km : 0;
+    setText('lastKMDisplay', `Previous Odometer: ${lastKM} km`);
 }
 
-function renderExpenseTable() {
+function updateExpenseUI() {
     const tbody = document.getElementById('expenseTable');
     if (!tbody) return;
     tbody.innerHTML = '';
     
-    const sorted = [...expenses].sort((a,b) => new Date(b.date) - new Date(a.date));
-    
-    sorted.slice(0, 10).forEach(e => {
-        tbody.innerHTML += `
-            <tr>
-                <td>${formatDate(e.date)}</td>
-                <td>${e.category}</td>
-                <td>₹${e.amount}</td>
-                <td style="text-align:right">
-                    <button class="action-btn delete" onclick="deleteEntry('expense', ${e.id})" aria-label="Delete expense entry"><i data-lucide="trash-2"></i></button>
-                </td>
-            </tr>
+    expenses.forEach(e => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${new Date(e.date || Date.now()).toLocaleDateString()}</td>
+            <td>${e.category}</td>
+            <td>₹${e.amount}</td>
+            <td><button class="action-btn" onclick="deleteEntry('expense', '${e.id}')">×</button></td>
         `;
+        tbody.appendChild(tr);
     });
 }
 
-function renderInsights() {
-    const insightList = document.getElementById('insightList');
-    if (!insightList) return;
-    insightList.innerHTML = '';
-
-    // Financial Metrics Cards
-    const totalsLocal = getTotals();
-    const financialMetrics = document.getElementById('financial-metrics');
-    if (financialMetrics) {
-        const todayStr = new Date().toISOString().split('T')[0];
-        const todayEarnings = rides.filter(r => r.date === todayStr).reduce((sum, r) => sum + r.earnings, 0);
-        
-        const currentMonth = new Date().getMonth();
-        const currentYear = new Date().getFullYear();
-        const monthlyEarnings = rides.filter(r => {
-            const d = new Date(r.date);
-            return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
-        }).reduce((sum, r) => sum + r.earnings, 0);
-        const monthlySavings = (monthlyEarnings * (settings.savingPercent / 100)).toFixed(0);
-
-        const totalSavings = totalsLocal.totalEarnings * (settings.savingPercent / 100);
-        const spendable = (totalsLocal.totalEarnings - totalSavings).toFixed(0);
-
-        financialMetrics.innerHTML = `
-            <div class="card insight-card card-green">
-                <p>Today's Earnings</p>
-                <h3>₹${todayEarnings.toLocaleString()}</h3>
-            </div>
-            <div class="card insight-card card-teal">
-                <p>Monthly Savings</p>
-                <h3>₹${Number(monthlySavings).toLocaleString()}</h3>
-            </div>
-            <div class="card insight-card card-purple">
-                <p>Spendable Income</p>
-                <h3>₹${Number(spendable).toLocaleString()}</h3>
-            </div>
-        `;
-    }
-
-    const messages = [];
-    const mileage = getMileage();
-    const goal = getGoalStats(totalsLocal.savings);
-
-    if (mileage > 45) messages.push({ text: "Excellent efficiency! Keep it up.", icon: "star", type: "primary" });
-    if (mileage > 0 && mileage < 30) messages.push({ text: "Low mileage detected. Check tire pressure.", icon: "alert-triangle", type: "warning" });
+function updateInsightsUI() {
+    const container = document.getElementById('financial-metrics');
+    if (!container) return;
     
-    if (goal.remainingGoal > 0) {
-        messages.push({ text: `You need ₹${goal.dailyNeeded} daily to reach your savings goal.`, icon: "target", type: "secondary" });
-    } else if (settings.monthlyGoal > 0) {
-        messages.push({ text: "Monthly goal reached! High five!", icon: "award", type: "primary" });
-    }
-
-    if (rides.length > 5) {
-        const avgEarnings = totalsLocal.totalEarnings / new Set(rides.map(r => r.date)).size;
-        messages.push({ text: `Your average daily earnings is ₹${avgEarnings.toFixed(0)}.`, icon: "trending-up", type: "secondary" });
-    }
-
-    messages.forEach(m => {
-        insightList.innerHTML += `
-            <div class="insight-msg">
-                <div class="insight-icon" style="color: var(--${m.type})"><i data-lucide="${m.icon}"></i></div>
-                <p style="font-size:0.9rem">${m.text}</p>
-            </div>
-        `;
-    });
-    if (window.lucide) lucide.createIcons();
-}
-
-function formatDate(d) {
-    return new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+    const totalEarn = rides.reduce((sum, r) => sum + Number(r.earnings), 0);
+    const totalFuel = petrols.reduce((sum, p) => sum + Number(p.cost), 0);
+    const totalExp = expenses.reduce((sum, e) => sum + Number(e.amount), 0);
+    const net = totalEarn - totalFuel - totalExp;
+    
+    const metrics = [
+        { label: 'Net Profit', value: `₹${net.toLocaleString()}`, color: net >= 0 ? 'green' : 'orange' },
+        { label: 'Fuel Cost', value: `₹${totalFuel.toLocaleString()}`, color: 'blue' },
+        { label: 'Expenses', value: `₹${totalExp.toLocaleString()}`, color: 'purple' },
+        { label: 'Avg / KM', value: `₹${(totalEarn / (rides.reduce((s,r) => s + (r.endKM-r.startKM), 0) || 1)).toFixed(2)}`, color: 'teal' }
+    ];
+    
+    container.innerHTML = metrics.map(m => `
+        <div class="card stat-card card-${m.color}">
+            <p>${m.label}</p>
+            <h3 class="stat-value">${m.value}</h3>
+        </div>
+    `).join('');
 }
 
 // =====================
-// CHARTS (Lazy Loaded)
+// CALCULATION LOGIC
 // =====================
 
-async function renderCharts() {
+function calculateMileage(index) {
+    if (index === 0) {
+        if (settings.initialKM > 0 && petrols[0].km > settings.initialKM) {
+            return (petrols[0].km - settings.initialKM) / petrols[0].litres;
+        }
+        return 0;
+    }
+    const dist = petrols[index].km - petrols[index-1].km;
+    return dist / petrols[index].litres;
+}
+
+function calculateStreak(data) {
+    if (data.length === 0) return 0;
+    let s = 0;
+    const today = new Date().toISOString().split('T')[0];
+    const dates = [...new Set(data.map(r => r.date))].sort().reverse();
+    
+    let current = new Date();
+    for (let d of dates) {
+        if (d === current.toISOString().split('T')[0]) {
+            s++;
+            current.setDate(current.getDate() - 1);
+        } else break;
+    }
+    return s;
+}
+
+// =====================
+// CHARTING
+// =====================
+
+function initCharts() {
     if (typeof Chart === 'undefined') {
-        await loadScript('https://cdn.jsdelivr.net/npm/chart.js');
+        console.warn("Chart.js not loaded yet. Skipping charts.");
+        return;
+    }
+    
+    // Check if app is visible
+    if (!document.body.classList.contains('logged-in')) return;
+
+    // 1. Weekly Earning Chart
+    const ctxHome = document.getElementById('homeWeeklyChart');
+    if (ctxHome) {
+        const labels = Array.from({length: 7}, (_, i) => {
+            const d = new Date();
+            d.setDate(d.getDate() - (6 - i));
+            return d.toLocaleDateString('en-US', { weekday: 'short' });
+        });
+        const data = labels.map((_, i) => {
+            const d = new Date();
+            d.setDate(d.getDate() - (6 - i));
+            const dayStr = d.toISOString().split('T')[0];
+            return rides.filter(r => r.date === dayStr).reduce((s, r) => s + Number(r.earnings), 0);
+        });
+        if (charts.homeWeekly) {
+            charts.homeWeekly.data.labels = labels;
+            charts.homeWeekly.data.datasets[0].data = data;
+            charts.homeWeekly.update();
+        } else {
+            charts.homeWeekly = new Chart(ctxHome, {
+                type: 'line',
+                data: { labels, datasets: [{ label: 'Earnings', data, borderColor: '#6366f1', backgroundColor: 'rgba(99, 102, 241, 0.1)', fill: true, tension: 0.4 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            });
+        }
     }
 
-    const commonOptions = {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: {
-            y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8' } },
-            x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
-        }
-    };
-
-    // Use requestIdleCallback or setTimeout to render charts without blocking
-    requestAnimationFrame(() => {
-        // 1. Home Weekly Earnings
-        const homeCtx = document.getElementById('homeWeeklyChart');
-        if (homeCtx && homeCtx.offsetParent !== null) {
-            if (charts.homeWeekly) charts.homeWeekly.destroy();
-            const last7 = rides.slice(-7);
-            charts.homeWeekly = new Chart(homeCtx, {
-                type: 'line',
-                data: {
-                    labels: last7.map(r => formatDate(r.date)),
-                    datasets: [{
-                        data: last7.map(r => r.earnings),
-                        borderColor: '#22c55e',
-                        backgroundColor: 'rgba(34, 197, 94, 0.2)',
-                        fill: true,
-                        tension: 0.4,
-                        pointRadius: 4
-                    }]
-                },
-                options: commonOptions
-            });
-        }
-
-        // 2. Mileage Trend
-        const mileageCtx = document.getElementById('mileageChart');
-        if (mileageCtx && mileageCtx.offsetParent !== null && petrols.length > 1) {
-            if (charts.mileage) charts.mileage.destroy();
-            const kmSorted = [...petrols].sort((a,b) => a.km - b.km);
-            const data = [];
-            const labels = [];
-            for(let i=1; i<kmSorted.length; i++) {
-                data.push(((kmSorted[i].km - kmSorted[i-1].km) / kmSorted[i].litres).toFixed(1));
-                labels.push(formatDate(kmSorted[i].date));
-            }
-            charts.mileage = new Chart(mileageCtx, {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        data: data,
-                        borderColor: '#3b82f6',
-                        tension: 0.4,
-                        pointRadius: 4
-                    }]
-                },
-                options: commonOptions
-            });
-        }
-
-        // 3. Expense Pie
-        const pieCtx = document.getElementById('expensePieChart');
-        if (pieCtx && pieCtx.offsetParent !== null) {
-            if (charts.expensePie) charts.expensePie.destroy();
-            const catMap = {};
-            expenses.forEach(e => catMap[e.category] = (catMap[e.category] || 0) + e.amount);
-            
-            charts.expensePie = new Chart(pieCtx, {
-                type: 'doughnut',
-                data: {
-                    labels: Object.keys(catMap),
-                    datasets: [{
-                        data: Object.values(catMap),
-                        backgroundColor: ['#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444', '#22c55e'],
-                        borderWidth: 0
-                    }]
-                },
-                options: { 
-                    maintainAspectRatio: false,
-                    cutout: '65%', 
-                    plugins: { 
-                        legend: { 
-                            display: true, 
-                            position: 'bottom', 
-                            labels: { 
-                                color: '#e2e8f0',
-                                padding: 20,
-                                font: { size: 11 }
-                            } 
-                        } 
-                    } 
-                }
-            });
-        }
-
-        // 4. Comparison Chart (Insights)
-        const comparisonCtx = document.getElementById('insightComparisonChart');
-        if (comparisonCtx && comparisonCtx.offsetParent !== null) {
-            if (charts.comparison) charts.comparison.destroy();
-            const totals = getTotals();
-            charts.comparison = new Chart(comparisonCtx, {
+    // 2. Mileage Chart
+    const ctxMileage = document.getElementById('mileageChart');
+    if (ctxMileage) {
+        const milData = petrols.map((_, i) => calculateMileage(i).toFixed(1));
+        const milLabels = petrols.map(p => new Date(p.date || Date.now()).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+        if (charts.mileage) {
+            charts.mileage.data.labels = milLabels;
+            charts.mileage.data.datasets[0].data = milData;
+            charts.mileage.update();
+        } else {
+            charts.mileage = new Chart(ctxMileage, {
                 type: 'bar',
-                data: {
-                    labels: ['Earnings', 'Expenses', 'Fuel'],
-                    datasets: [{
-                        data: [totals.totalEarnings, totals.totalExpenses, totals.totalPetrolCost],
-                        backgroundColor: ['#22c55e', '#ef4444', '#f59e0b']
-                    }]
-                },
-                options: commonOptions
+                data: { labels: milLabels, datasets: [{ label: 'KM/L', data: milData, backgroundColor: '#10b981' }] },
+                options: { responsive: true, maintainAspectRatio: false }
             });
         }
-    });
+    }
 
-    if (window.lucide) lucide.createIcons();
+    // 3. Expense Pie Chart
+    const ctxPie = document.getElementById('expensePieChart') || document.getElementById('pieChart');
+    if (ctxPie) {
+        const categories = [...new Set(expenses.map(e => e.category))];
+        const catData = categories.map(cat => expenses.filter(e => e.category === cat).reduce((s, e) => s + Number(e.amount), 0));
+        if (charts.expensePie) {
+            charts.expensePie.data.labels = categories;
+            charts.expensePie.data.datasets[0].data = catData;
+            charts.expensePie.update();
+        } else {
+            charts.expensePie = new Chart(ctxPie, {
+                type: 'doughnut',
+                data: { labels: categories, datasets: [{ data: catData, backgroundColor: ['#6366f1', '#f59e0b', '#ef4444', '#10b981'] }] },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+    }
+
+    // 4. Insights Comparison
+    const ctxComp = document.getElementById('insightComparisonChart');
+    if (ctxComp) {
+        const totalEarn = rides.reduce((sum, r) => sum + Number(r.earnings), 0);
+        const totalFuel = petrols.reduce((sum, p) => sum + Number(p.cost), 0);
+        const totalExp = expenses.reduce((sum, e) => sum + Number(e.amount), 0);
+        if (charts.comparison) {
+            charts.comparison.data.datasets[0].data = [totalEarn, totalFuel + totalExp];
+            charts.comparison.update();
+        } else {
+            charts.comparison = new Chart(ctxComp, {
+                type: 'bar',
+                data: { labels: ['Income', 'Expenses'], datasets: [{ data: [totalEarn, totalFuel + totalExp], backgroundColor: ['#10b981', '#ef4444'] }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            });
+        }
+    }
 }
 
 // =====================
-// FORMS & EVENTS
+// EVENT HANDLERS
 // =====================
 
-document.getElementById('rideForm')?.addEventListener('submit', async e => {
+document.getElementById('rideForm')?.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const newRide = {
-        id: Date.now(),
-        date: document.getElementById('rideDate').value,
+    const data = {
+        date: document.getElementById('rideDate').value || new Date().toISOString().split('T')[0],
         startKM: Number(document.getElementById('startKM').value),
         endKM: Number(document.getElementById('endKM').value),
-        earnings: Number(document.getElementById('earnings').value)
+        earnings: Number(document.getElementById('earnings').value),
+        timestamp: serverTimestamp()
     };
-    rides.push(newRide);
-    await saveData();
+    
+    if (isFirebaseReady) {
+        await addDoc(collection(db, "users", userId, "rides"), data);
+    }
     document.getElementById('rideModal').classList.remove('active');
     e.target.reset();
-    render();
 });
 
-document.getElementById('petrolForm')?.addEventListener('submit', async e => {
+document.getElementById('petrolForm')?.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const km = Number(document.getElementById('petrolKM').value);
-    const newPetrol = {
-        id: Date.now(),
+    const data = {
         date: new Date().toISOString().split('T')[0],
-        km: km,
+        km: Number(document.getElementById('petrolKM').value),
         litres: Number(document.getElementById('litres').value),
-        cost: Number(document.getElementById('cost').value)
+        cost: Number(document.getElementById('cost').value),
+        timestamp: serverTimestamp()
     };
-    petrols.push(newPetrol);
-    
-    // Auto-sync initial odometer setting
-    settings.initialKM = km;
-    
-    await saveData();
+
+    if (isFirebaseReady) {
+        await addDoc(collection(db, "users", userId, "petrols"), data);
+    }
     e.target.reset();
-    render();
 });
 
-document.getElementById('expenseForm')?.addEventListener('submit', async e => {
+document.getElementById('expenseForm')?.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const newExpense = {
-        id: Date.now(),
+    const data = {
         date: new Date().toISOString().split('T')[0],
         category: document.getElementById('expenseCategory').value,
-        amount: Number(document.getElementById('expenseAmount').value)
+        amount: Number(document.getElementById('expenseAmount').value),
+        timestamp: serverTimestamp()
     };
-    expenses.push(newExpense);
-    await saveData();
+
+    if (isFirebaseReady) {
+        await addDoc(collection(db, "users", userId, "expenses"), data);
+    }
     e.target.reset();
-    render();
 });
 
-async function saveSettings() {
-    const goal = document.getElementById('monthlyGoalInput').value;
-    const sav = document.getElementById('savingsPercentInput').value;
-    const initKM = document.getElementById('initialKMInput').value;
-    
-    if (goal) settings.monthlyGoal = Number(goal);
-    if (sav) settings.savingPercent = Number(sav);
-    if (initKM !== "") settings.initialKM = Number(initKM);
-    
-    await saveData();
+window.saveSettings = async () => {
+    settings.monthlyGoal = Number(document.getElementById('monthlyGoalInput').value) || 8000;
+    settings.savingPercent = Number(document.getElementById('savingsPercentInput').value) || 30;
+    settings.initialKM = Number(document.getElementById('initialKMInput').value) || 0;
+
+    if (isFirebaseReady) {
+        try {
+            document.body.classList.add("loading");
+            await setDoc(doc(db, "users", userId, "config", "settings"), settings);
+        } catch (err) {
+            console.error("Save Settings Failed:", err);
+            document.body.classList.remove("loading");
+        }
+    }
     alert("Configurations saved!");
     switchTab('home');
-}
+};
 
-async function deleteEntry(type, id) {
+window.deleteEntry = async function(type, id) {
     if (!confirm("Delete this entry?")) return;
-    if (type === 'ride') rides = rides.filter(r => r.id !== id);
-    if (type === 'petrol') petrols = petrols.filter(p => p.id !== id);
-    if (type === 'expense') expenses = expenses.filter(e => e.id !== id);
-    await saveData();
-    render();
-}
+    try {
+        if (isFirebaseReady) {
+            await deleteDoc(doc(db, "users", userId, type + 's', id));
+        }
+    } catch (err) {
+        console.error("Delete failed:", err);
+    }
+};
 
-function resetData() {
-    if (!confirm("Are you SURE? This will wipe ALL your data.")) return;
+window.resetData = function() {
+    if (!confirm("Are you SURE? This will wipe LOCAL cache. Database remains safe.")) return;
     localStorage.clear();
     location.reload();
+};
+
+// =====================
+// DATA MIGRATION
+// =====================
+async function migrateLocalData(newUid) {
+    const ridesBatchData = JSON.parse(localStorage.getItem("bmd_rides"));
+    const petrolsBatchData = JSON.parse(localStorage.getItem("bmd_petrols"));
+    const expensesBatchData = JSON.parse(localStorage.getItem("bmd_expenses"));
+
+    if (!ridesBatchData && !petrolsBatchData && !expensesBatchData) return;
+
+    console.log("Migrating local data to your new account...");
+    const batch = writeBatch(db);
+
+    if (ridesBatchData) {
+        ridesBatchData.forEach(r => {
+            const ref = doc(collection(db, "users", newUid, "rides"));
+            batch.set(ref, r);
+        });
+    }
+    if (petrolsBatchData) {
+        petrolsBatchData.forEach(p => {
+            const ref = doc(collection(db, "users", newUid, "petrols"));
+            batch.set(ref, p);
+        });
+    }
+    if (expensesBatchData) {
+        expensesBatchData.forEach(e => {
+            const ref = doc(collection(db, "users", newUid, "expenses"));
+            batch.set(ref, e);
+        });
+    }
+
+    try {
+        await batch.commit();
+        localStorage.removeItem("bmd_rides");
+        localStorage.removeItem("bmd_petrols");
+        localStorage.removeItem("bmd_expenses");
+        console.log("Migration successful!");
+    } catch (err) {
+        console.error("Migration failed:", err);
+    }
 }
 
 // =====================
 // INIT
 // =====================
-document.addEventListener('DOMContentLoaded', async () => {
-    await initFirebase();
-    
-    if (document.getElementById('monthlyGoalInput')) document.getElementById('monthlyGoalInput').value = settings.monthlyGoal;
-    if (document.getElementById('savingsPercentInput')) document.getElementById('savingsPercentInput').value = settings.savingPercent;
-    if (document.getElementById('initialKMInput')) document.getElementById('initialKMInput').value = settings.initialKM;
-    render();
+onAuthStateChanged(auth, async (user) => {
+    if (user) {
+        console.log("User logged in:", user.uid);
+        userId = user.uid;
+        document.body.classList.add("logged-in");
+        
+        // One-time migration
+        await migrateLocalData(user.uid);
+        
+        // Start Sync
+        await initFirebase();
+        
+        // Final UI Polish
+        render(); 
+        
+        // Update Settings UI
+        if (document.getElementById('monthlyGoalInput')) {
+            document.getElementById('monthlyGoalInput').value = settings.monthlyGoal || 8000;
+        }
+        
+    } else {
+        console.log("No user logged in.");
+        userId = null;
+        document.body.classList.remove("logged-in");
+        document.body.classList.remove("loading");
+    }
 });

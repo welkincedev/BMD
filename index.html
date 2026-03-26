@@ -2,25 +2,24 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>BMD - Bike Mileage Dashboard</title>
-  <link rel="stylesheet" href="style.css">
-  <!-- Chart.js -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="style.css?v=1.1">
+  <!-- Chart.js loaded lazily in app.js -->
   <!-- Firebase SDKs -->
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
   <!-- Local Config -->
-  <script src="firebase-config.js"></script>
+  <script defer src="firebase-config.js"></script>
   <!-- Lucide Icons -->
-  <script src="https://unpkg.com/lucide@latest"></script>
+  <script defer src="https://unpkg.com/lucide@latest"></script>
 </head>
 <body>
 
 <div class="app">
   <header class="header">
     <div class="logo">BMD</div>
-    <button class="settings-btn" onclick="switchTab('settings')">
+    <button class="settings-btn" onclick="switchTab('settings')" aria-label="Settings">
       <i data-lucide="settings"></i>
     </button>
   </header>
@@ -31,26 +30,26 @@
     <section id="home" class="screen active">
       <div class="card streak-card">
         <h3 id="streak">🔥 0 Day Streak</h3>
-        <button class="btn-add" onclick="document.getElementById('rideModal').classList.add('active')">
+        <button class="btn-add" onclick="document.getElementById('rideModal').classList.add('active')" aria-label="Add New Ride">
           <i data-lucide="plus"></i> Add Ride
         </button>
       </div>
 
       <div class="grid">
-        <div class="card stat-card">
+        <div class="card stat-card card-green">
           <p>Total Earnings</p>
           <h3 id="earn">₹0</h3>
           <span class="trend" id="trend"></span>
         </div>
-        <div class="card stat-card">
+        <div class="card stat-card card-blue">
           <p>Distance</p>
           <h3 id="distance">0 km</h3>
         </div>
-        <div class="card stat-card">
+        <div class="card stat-card card-blue">
           <p>Mileage</p>
           <h3 id="mileage">0 km/l</h3>
         </div>
-        <div class="card stat-card">
+        <div class="card stat-card card-orange">
           <p>Avg ₹/km</p>
           <h3 id="avgKm">₹0</h3>
         </div>
@@ -106,7 +105,7 @@
               <input type="number" id="cost" placeholder="e.g. 550" required>
             </div>
           </div>
-          <button type="submit">Add Fuel Entry</button>
+          <button type="submit" aria-label="Add Fuel Entry">Add Fuel Entry</button>
         </form>
       </div>
 
@@ -162,7 +161,7 @@
               <input type="number" id="expenseAmount" placeholder="Amount" required>
             </div>
           </div>
-          <button type="submit">Log Expense</button>
+          <button type="submit" aria-label="Log Expense">Log Expense</button>
         </form>
       </div>
 
@@ -236,13 +235,13 @@
           <input type="number" id="initialKMInput" placeholder="0">
           <small style="color: var(--text-muted); display: block; margin-top: 5px;">Set this to your odometer reading at your very first fill-up to enable mileage calculation for the first entry.</small>
         </div>
-        <button onclick="saveSettings()">Save Configuration</button>
+        <button onclick="saveSettings()" aria-label="Save Configuration">Save Configuration</button>
       </div>
 
-      <div class="card">
+      <div class="card card-orange">
         <h3 style="margin-bottom: 15px;">Data Management</h3>
         <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 15px;">Clear all local data and reset the app.</p>
-        <button onclick="resetData()" style="background: var(--danger); box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);">Reset All Data</button>
+        <button onclick="resetData()" style="background: var(--danger); box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);" aria-label="Reset All Data">Reset All Data</button>
       </div>
     </section>
 
@@ -250,19 +249,19 @@
 
   <!-- Bottom Navigation -->
   <nav class="bottom-nav">
-    <div class="nav-item active" onclick="switchTab('home')" id="nav-home">
+    <div class="nav-item active" onclick="switchTab('home')" id="nav-home" aria-label="Go to Home">
       <i data-lucide="home"></i>
       <span>Home</span>
     </div>
-    <div class="nav-item" onclick="switchTab('mileage-tab')" id="nav-mileage-tab">
+    <div class="nav-item" onclick="switchTab('mileage-tab')" id="nav-mileage-tab" aria-label="Go to Mileage">
       <i data-lucide="fuel"></i>
       <span>Mileage</span>
     </div>
-    <div class="nav-item" onclick="switchTab('expenses-tab')" id="nav-expenses-tab">
+    <div class="nav-item" onclick="switchTab('expenses-tab')" id="nav-expenses-tab" aria-label="Go to Expenses">
       <i data-lucide="wallet"></i>
       <span>Expenses</span>
     </div>
-    <div class="nav-item" onclick="switchTab('insights-tab')" id="nav-insights-tab">
+    <div class="nav-item" onclick="switchTab('insights-tab')" id="nav-insights-tab" aria-label="Go to Insights">
       <i data-lucide="bar-chart-3"></i>
       <span>Insights</span>
     </div>
@@ -275,7 +274,7 @@
   <div class="modal-content card">
     <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
       <h3>Log Daily Ride</h3>
-      <span onclick="document.getElementById('rideModal').classList.remove('active')" style="cursor: pointer; padding: 5px;"><i data-lucide="x"></i></span>
+      <span onclick="document.getElementById('rideModal').classList.remove('active')" style="cursor: pointer; padding: 5px;" aria-label="Close Modal"><i data-lucide="x"></i></span>
     </div>
     <form id="rideForm">
       <div class="form-group">
@@ -296,12 +295,12 @@
         <label>Earnings (₹)</label>
         <input type="number" id="earnings" placeholder="Total made today" required>
       </div>
-      <button type="submit">Save Ride</button>
+      <button type="submit" aria-label="Save Ride Details">Save Ride</button>
     </form>
   </div>
 </div>
 
-<script src="app.js"></script>
+<script defer src="app.js?v=1.1"></script>
 <script>
   // Initialize icons
   lucide.createIcons();

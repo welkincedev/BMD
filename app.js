@@ -182,6 +182,20 @@ function getGoalStats(currentSavings) {
 }
 
 // =====================
+// UTILS & PERFORMANCE
+// =====================
+function loadScript(url) {
+    return new Promise((resolve, reject) => {
+        if (document.querySelector(`script[src="${url}"]`)) return resolve();
+        const script = document.createElement('script');
+        script.src = url;
+        script.onload = resolve;
+        script.onerror = reject;
+        document.head.appendChild(script);
+    });
+}
+
+// =====================
 // RENDER UI
 // =====================
 
@@ -190,43 +204,44 @@ function render() {
     const streak = getStreak();
     const mileage = getMileage();
     
-    // Home Stats
-    setText('earn', `₹${totals.totalEarnings.toLocaleString()}`);
-    setText('distance', `${totals.totalDistance} km`);
-    setText('mileage', `${mileage} km/l`);
-    setText('avgKm', `₹${totals.avgKmCost}/km`);
-    setText('streak', `🔥 ${streak} Day Streak`);
+    // Use requestAnimationFrame to split rendering tasks
+    requestAnimationFrame(() => {
+        // Home Stats
+        setText('earn', `₹${totals.totalEarnings.toLocaleString()}`);
+        setText('distance', `${totals.totalDistance} km`);
+        setText('mileage', `${mileage} km/l`);
+        setText('avgKm', `₹${totals.avgKmCost}/km`);
+        setText('streak', `🔥 ${streak} Day Streak`);
 
-    // Mileage Context
-    setText('lastKMDisplay', `Previous Odometer: ${settings.initialKM} km`);
+        // Mileage Context
+        setText('lastKMDisplay', `Previous Odometer: ${settings.initialKM} km`);
 
-    // Goal
-    const goal = getGoalStats(totals.savings);
-    setText('savingsText', `₹${Math.floor(totals.savings)} / ₹${settings.monthlyGoal}`);
-    setText('dailyNeed', `₹${goal.dailyNeeded}`);
-    setText('projection', goal.projectedDays);
-    const bar = document.getElementById('bar');
-    if (bar) bar.style.width = `${Math.min(100, (totals.savings / settings.monthlyGoal * 100))}%`;
+        // Goal
+        const goal = getGoalStats(totals.savings);
+        setText('savingsText', `₹${Math.floor(totals.savings)} / ₹${settings.monthlyGoal}`);
+        setText('dailyNeed', `₹${goal.dailyNeeded}`);
+        setText('projection', goal.projectedDays);
+        const bar = document.getElementById('bar');
+        if (bar) bar.style.width = `${Math.min(100, (totals.savings / settings.monthlyGoal * 100))}%`;
 
-    // Trend
-    const trendEl = document.getElementById('trend');
-    if (trendEl && rides.length > 1) {
-        const last = rides[rides.length - 1].earnings;
-        const prev = rides[rides.length - 2].earnings;
-        if (last > prev) trendEl.innerHTML = '<span class="up">↑ Rising</span>';
-        else if (last < prev) trendEl.innerHTML = '<span class="down">↓ Falling</span>';
-        else trendEl.innerHTML = '<span>→ Stable</span>';
-    }
+        // Trend
+        const trendEl = document.getElementById('trend');
+        if (trendEl && rides.length > 1) {
+            const last = rides[rides.length - 1].earnings;
+            const prev = rides[rides.length - 2].earnings;
+            if (last > prev) trendEl.innerHTML = '<span class="up">↑ Rising</span>';
+            else if (last < prev) trendEl.innerHTML = '<span class="down">↓ Falling</span>';
+            else trendEl.innerHTML = '<span>→ Stable</span>';
+        }
 
-    // Tables
-    renderPetrolTable();
-    renderExpenseTable();
-    
-    // Insights
-    renderInsights();
-
-    // Charts
-    setTimeout(renderCharts, 100);
+        // Tables & Insights (Non-blocking)
+        setTimeout(() => {
+            renderPetrolTable();
+            renderExpenseTable();
+            renderInsights();
+            renderCharts();
+        }, 0);
+    });
 
     // Form Defaults
     const dateInput = document.getElementById('rideDate');
@@ -262,7 +277,7 @@ function renderPetrolTable() {
                 <td>${p.litres}L</td>
                 <td><span style="color:var(--primary)">${m}</span></td>
                 <td style="text-align:right">
-                    <button class="action-btn delete" onclick="deleteEntry('petrol', ${p.id})"><i data-lucide="trash-2"></i></button>
+                    <button class="action-btn delete" onclick="deleteEntry('petrol', ${p.id})" aria-label="Delete petrol entry"><i data-lucide="trash-2"></i></button>
                 </td>
             </tr>
         `;
@@ -283,7 +298,7 @@ function renderExpenseTable() {
                 <td>${e.category}</td>
                 <td>₹${e.amount}</td>
                 <td style="text-align:right">
-                    <button class="action-btn delete" onclick="deleteEntry('expense', ${e.id})"><i data-lucide="trash-2"></i></button>
+                    <button class="action-btn delete" onclick="deleteEntry('expense', ${e.id})" aria-label="Delete expense entry"><i data-lucide="trash-2"></i></button>
                 </td>
             </tr>
         `;
@@ -318,7 +333,7 @@ function renderInsights() {
                 <p>Today's Earnings</p>
                 <h3>₹${todayEarnings.toLocaleString()}</h3>
             </div>
-            <div class="card insight-card card-blue">
+            <div class="card insight-card card-teal">
                 <p>Monthly Savings</p>
                 <h3>₹${Number(monthlySavings).toLocaleString()}</h3>
             </div>
@@ -363,10 +378,14 @@ function formatDate(d) {
 }
 
 // =====================
-// CHARTS
+// CHARTS (Lazy Loaded)
 // =====================
 
-function renderCharts() {
+async function renderCharts() {
+    if (typeof Chart === 'undefined') {
+        await loadScript('https://cdn.jsdelivr.net/npm/chart.js');
+    }
+
     const commonOptions = {
         responsive: true,
         maintainAspectRatio: false,
@@ -377,106 +396,109 @@ function renderCharts() {
         }
     };
 
-    // 1. Home Weekly Earnings
-    const homeCtx = document.getElementById('homeWeeklyChart');
-    if (homeCtx) {
-        if (charts.homeWeekly) charts.homeWeekly.destroy();
-        const last7 = rides.slice(-7);
-        charts.homeWeekly = new Chart(homeCtx, {
-            type: 'line',
-            data: {
-                labels: last7.map(r => formatDate(r.date)),
-                datasets: [{
-                    data: last7.map(r => r.earnings),
-                    borderColor: '#22c55e',
-                    backgroundColor: 'rgba(34, 197, 94, 0.2)',
-                    fill: true,
-                    tension: 0.4,
-                    pointRadius: 4
-                }]
-            },
-            options: commonOptions
-        });
-    }
-
-    // 2. Mileage Trend
-    const mileageCtx = document.getElementById('mileageChart');
-    if (mileageCtx && petrols.length > 1) {
-        if (charts.mileage) charts.mileage.destroy();
-        const kmSorted = [...petrols].sort((a,b) => a.km - b.km);
-        const data = [];
-        const labels = [];
-        for(let i=1; i<kmSorted.length; i++) {
-            data.push(((kmSorted[i].km - kmSorted[i-1].km) / kmSorted[i].litres).toFixed(1));
-            labels.push(formatDate(kmSorted[i].date));
+    // Use requestIdleCallback or setTimeout to render charts without blocking
+    requestAnimationFrame(() => {
+        // 1. Home Weekly Earnings
+        const homeCtx = document.getElementById('homeWeeklyChart');
+        if (homeCtx && homeCtx.offsetParent !== null) {
+            if (charts.homeWeekly) charts.homeWeekly.destroy();
+            const last7 = rides.slice(-7);
+            charts.homeWeekly = new Chart(homeCtx, {
+                type: 'line',
+                data: {
+                    labels: last7.map(r => formatDate(r.date)),
+                    datasets: [{
+                        data: last7.map(r => r.earnings),
+                        borderColor: '#22c55e',
+                        backgroundColor: 'rgba(34, 197, 94, 0.2)',
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 4
+                    }]
+                },
+                options: commonOptions
+            });
         }
-        charts.mileage = new Chart(mileageCtx, {
-            type: 'line',
-            data: {
-                labels: labels,
-                datasets: [{
-                    data: data,
-                    borderColor: '#3b82f6',
-                    tension: 0.4,
-                    pointRadius: 4
-                }]
-            },
-            options: commonOptions
-        });
-    }
 
-    // 3. Expense Pie
-    const pieCtx = document.getElementById('expensePieChart');
-    if (pieCtx) {
-        if (charts.expensePie) charts.expensePie.destroy();
-        const catMap = {};
-        expenses.forEach(e => catMap[e.category] = (catMap[e.category] || 0) + e.amount);
-        
-        charts.expensePie = new Chart(pieCtx, {
-            type: 'doughnut',
-            data: {
-                labels: Object.keys(catMap),
-                datasets: [{
-                    data: Object.values(catMap),
-                    backgroundColor: ['#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444', '#22c55e'],
-                    borderWidth: 0
-                }]
-            },
-            options: { 
-                maintainAspectRatio: false,
-                cutout: '65%', 
-                plugins: { 
-                    legend: { 
-                        display: true, 
-                        position: 'bottom', 
-                        labels: { 
-                            color: '#e2e8f0',
-                            padding: 20,
-                            font: { size: 11 }
+        // 2. Mileage Trend
+        const mileageCtx = document.getElementById('mileageChart');
+        if (mileageCtx && mileageCtx.offsetParent !== null && petrols.length > 1) {
+            if (charts.mileage) charts.mileage.destroy();
+            const kmSorted = [...petrols].sort((a,b) => a.km - b.km);
+            const data = [];
+            const labels = [];
+            for(let i=1; i<kmSorted.length; i++) {
+                data.push(((kmSorted[i].km - kmSorted[i-1].km) / kmSorted[i].litres).toFixed(1));
+                labels.push(formatDate(kmSorted[i].date));
+            }
+            charts.mileage = new Chart(mileageCtx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        borderColor: '#3b82f6',
+                        tension: 0.4,
+                        pointRadius: 4
+                    }]
+                },
+                options: commonOptions
+            });
+        }
+
+        // 3. Expense Pie
+        const pieCtx = document.getElementById('expensePieChart');
+        if (pieCtx && pieCtx.offsetParent !== null) {
+            if (charts.expensePie) charts.expensePie.destroy();
+            const catMap = {};
+            expenses.forEach(e => catMap[e.category] = (catMap[e.category] || 0) + e.amount);
+            
+            charts.expensePie = new Chart(pieCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(catMap),
+                    datasets: [{
+                        data: Object.values(catMap),
+                        backgroundColor: ['#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444', '#22c55e'],
+                        borderWidth: 0
+                    }]
+                },
+                options: { 
+                    maintainAspectRatio: false,
+                    cutout: '65%', 
+                    plugins: { 
+                        legend: { 
+                            display: true, 
+                            position: 'bottom', 
+                            labels: { 
+                                color: '#e2e8f0',
+                                padding: 20,
+                                font: { size: 11 }
+                            } 
                         } 
                     } 
-                } 
-            }
-        });
-    }
+                }
+            });
+        }
 
-    // 4. Comparison Chart (Insights)
-    const comparisonCtx = document.getElementById('insightComparisonChart');
-    if (comparisonCtx) {
-        if (charts.comparison) charts.comparison.destroy();
-        const totals = getTotals();
-        charts.comparison = new Chart(comparisonCtx, {
-            type: 'bar',
-            data: {
-                labels: ['Earnings', 'Expenses', 'Fuel'],
-                datasets: [{
-                    data: [totals.totalEarnings, totals.totalExpenses, totals.totalPetrolCost],
-                    backgroundColor: ['#22c55e', '#ef4444', '#f59e0b']
-                }]
-            },
-            options: commonOptions
-        });
-    }
+        // 4. Comparison Chart (Insights)
+        const comparisonCtx = document.getElementById('insightComparisonChart');
+        if (comparisonCtx && comparisonCtx.offsetParent !== null) {
+            if (charts.comparison) charts.comparison.destroy();
+            const totals = getTotals();
+            charts.comparison = new Chart(comparisonCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['Earnings', 'Expenses', 'Fuel'],
+                    datasets: [{
+                        data: [totals.totalEarnings, totals.totalExpenses, totals.totalPetrolCost],
+                        backgroundColor: ['#22c55e', '#ef4444', '#f59e0b']
+                    }]
+                },
+                options: commonOptions
+            });
+        }
+    });
 
     if (window.lucide) lucide.createIcons();
 }

@@ -295,10 +295,43 @@ function renderInsights() {
     if (!insightList) return;
     insightList.innerHTML = '';
 
+    // Financial Metrics Cards
+    const totalsLocal = getTotals();
+    const financialMetrics = document.getElementById('financial-metrics');
+    if (financialMetrics) {
+        const todayStr = new Date().toISOString().split('T')[0];
+        const todayEarnings = rides.filter(r => r.date === todayStr).reduce((sum, r) => sum + r.earnings, 0);
+        
+        const currentMonth = new Date().getMonth();
+        const currentYear = new Date().getFullYear();
+        const monthlyEarnings = rides.filter(r => {
+            const d = new Date(r.date);
+            return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+        }).reduce((sum, r) => sum + r.earnings, 0);
+        const monthlySavings = (monthlyEarnings * (settings.savingPercent / 100)).toFixed(0);
+
+        const totalSavings = totalsLocal.totalEarnings * (settings.savingPercent / 100);
+        const spendable = (totalsLocal.totalEarnings - totalSavings).toFixed(0);
+
+        financialMetrics.innerHTML = `
+            <div class="card insight-card card-green">
+                <p>Today's Earnings</p>
+                <h3>₹${todayEarnings.toLocaleString()}</h3>
+            </div>
+            <div class="card insight-card card-blue">
+                <p>Monthly Savings</p>
+                <h3>₹${Number(monthlySavings).toLocaleString()}</h3>
+            </div>
+            <div class="card insight-card card-purple">
+                <p>Spendable Income</p>
+                <h3>₹${Number(spendable).toLocaleString()}</h3>
+            </div>
+        `;
+    }
+
     const messages = [];
     const mileage = getMileage();
-    const totals = getTotals();
-    const goal = getGoalStats(totals.savings);
+    const goal = getGoalStats(totalsLocal.savings);
 
     if (mileage > 45) messages.push({ text: "Excellent efficiency! Keep it up.", icon: "star", type: "primary" });
     if (mileage > 0 && mileage < 30) messages.push({ text: "Low mileage detected. Check tire pressure.", icon: "alert-triangle", type: "warning" });
@@ -310,7 +343,7 @@ function renderInsights() {
     }
 
     if (rides.length > 5) {
-        const avgEarnings = totals.totalEarnings / new Set(rides.map(r => r.date)).size;
+        const avgEarnings = totalsLocal.totalEarnings / new Set(rides.map(r => r.date)).size;
         messages.push({ text: `Your average daily earnings is ₹${avgEarnings.toFixed(0)}.`, icon: "trending-up", type: "secondary" });
     }
 

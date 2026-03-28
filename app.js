@@ -301,7 +301,7 @@ function updatePetrolUI() {
         tbody.appendChild(tr);
     });
 
-    const lastKM = petrols.length > 0 ? (parseFloat(petrols[petrols.length-1].km) || 0) : 0;
+    const lastKM = petrols.length > 0 ? (parseFloat(petrols[petrols.length-1].km) || 0) : (parseFloat(settings.initialKM) || 0);
     setText('lastKMDisplay', `Previous Odometer: ${formatNumber(lastKM, 1)} km`);
 }
 

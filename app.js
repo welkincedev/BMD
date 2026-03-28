@@ -69,8 +69,8 @@ window.getPreviousOdometer = () => {
     if (petrols.length === 0) {
         return parseFloat(settings.initialKM) || 0;
     }
-    // petrols are sorted by KM asc in snapshot
-    return parseFloat(petrols[petrols.length - 1].km) || 0;
+    const sorted = [...petrols].sort((a,b) => parseFloat(a.km) - parseFloat(b.km));
+    return parseFloat(sorted[sorted.length - 1].km) || 0;
 };
 
 // Safe Icon Creation
@@ -226,6 +226,13 @@ window.switchTab = (tabId) => {
     const navItem = document.getElementById('nav-' + tabId);
     if (navItem) navItem.classList.add('active');
     
+    // Header Back Arrow Toggle
+    const backBtn = document.getElementById('backBtn');
+    if (backBtn) {
+        backBtn.style.display = (tabId === 'settings') ? 'flex' : 'none';
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+    
     render();
 };
 
@@ -361,10 +368,14 @@ window.saveInitialKM = async () => {
     const val = parseFloat(el.value) || 0;
     
     settings.initialKM = val;
+    localStorage.setItem('settings', JSON.stringify(settings));
+
     try {
         isSavingSettings = true;
-        await setDoc(doc(db, "users", userId, "config", "settings"), { initialKM: val }, { merge: true });
-        render(); // Sync all odometer hints
+        if (isFirebaseReady) {
+            await setDoc(doc(db, "users", userId, "config", "settings"), { initialKM: val }, { merge: true });
+        }
+        render(); // Force sync across Home and Mileage
     } catch (err) {
         console.error("Failed to save initial KM:", err);
     } finally {
@@ -670,11 +681,24 @@ window.deleteEntry = async function(type, id) {
 };
 
 // Data Purge Logic
-window.showDeleteModal = () => document.getElementById('deleteConfirmModal').classList.add('active');
-window.closeDeleteModal = () => document.getElementById('deleteConfirmModal').classList.remove('active');
+async function deleteCollection(colRef) {
+    const snapshot = await getDocs(colRef);
+    const promises = snapshot.docs.map(doc => deleteDoc(doc.ref));
+    await Promise.all(promises);
+}
 
-window.confirmDeleteAll = async () => {
-    closeDeleteModal();
+window.openModal = () => {
+    const modal = document.getElementById('confirmModal');
+    if (modal) modal.classList.add('active');
+};
+
+window.closeModal = () => {
+    const modal = document.getElementById('confirmModal');
+    if (modal) modal.classList.remove('active');
+};
+
+window.confirmDelete = async () => {
+    closeModal();
     if (!userId) {
         localStorage.clear();
         window.location.reload();
@@ -683,23 +707,17 @@ window.confirmDeleteAll = async () => {
 
     document.body.classList.add("loading");
     try {
-        const collections = ["rides", "petrols", "expenses"];
-        for (const coll of collections) {
-            const q = query(collection(db, "users", userId, coll));
-            const snap = await getDocs(q);
-            for (const d of snap.docs) {
-                await deleteDoc(d.ref);
-            }
-        }
-        // Delete settings
+        await deleteCollection(collection(db, "users", userId, "rides"));
+        await deleteCollection(collection(db, "users", userId, "petrols"));
+        await deleteCollection(collection(db, "users", userId, "expenses"));
         await deleteDoc(doc(db, "users", userId, "config", "settings"));
         
         localStorage.clear();
-        alert("Success! Your account has been reset.");
+        alert("Account reset successful.");
         window.location.reload();
     } catch (err) {
         console.error("Purge failed:", err);
-        alert("Failed to delete all data. Please check your connection.");
+        alert("Failed to delete all data. Check connection.");
     } finally {
         document.body.classList.remove("loading");
     }

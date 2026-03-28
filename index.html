@@ -24,9 +24,14 @@
 <div class="app">
   <header class="header">
     <div class="logo">BMD</div>
-    <button class="settings-btn" onclick="switchTab('settings')" aria-label="Settings">
-      <i data-lucide="settings"></i>
-    </button>
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <button id="backBtn" onclick="switchTab('home')" class="action-btn" style="display: none; padding: 4px; background: var(--glass); border: 1px solid var(--border); border-radius: 8px; width: 32px; height: 32px; justify-content: center; align-items: center;">
+        <i data-lucide="arrow-left" style="width: 18px; height: 18px;"></i>
+      </button>
+      <button class="settings-btn" onclick="switchTab('settings')" aria-label="Settings">
+        <i data-lucide="settings"></i>
+      </button>
+    </div>
   </header>
 
   <main class="content">
@@ -254,13 +259,6 @@
 
     <!-- SETTINGS SCREEN -->
     <section id="settings" class="screen">
-      <div style="margin-bottom: 20px;">
-        <button onclick="switchTab('home')" class="btn-back" aria-label="Back to Home">
-          <i data-lucide="arrow-left"></i>
-          <span>Back</span>
-        </button>
-      </div>
-
       <div class="card">
         <h3 style="margin-bottom: 20px;">Configuration</h3>
         <div class="form-group">
@@ -278,7 +276,7 @@
         <h3 style="margin-bottom: 15px;">Account & Data</h3>
         <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 15px;">Log out of your account or reset local data.</p>
         <button onclick="logout()" class="btn-danger" aria-label="Logout" style="margin-bottom: 10px;">Logout from Google</button>
-        <button onclick="showDeleteModal()" class="btn-danger" style="background: linear-gradient(135deg, #ef4444, #7f1d1d); border: 1px solid rgba(255,255,255,0.1);" aria-label="Delete All Data">Delete All Data</button>
+        <button onclick="openModal()" class="btn-danger" style="background: linear-gradient(135deg, #ef4444, #7f1d1d); border: 1px solid rgba(255,255,255,0.1);" aria-label="Delete All Data">Delete All Data</button>
         <p style="color: var(--danger); font-size: 0.75rem; margin-top: 10px; text-align: center; opacity: 0.8;">⚠️ This action is irreversible</p>
       </div>
     </section>
@@ -340,17 +338,17 @@
 </div>
 
 <!-- Delete Confirmation Modal -->
-<div id="deleteConfirmModal" class="modal">
+<div id="confirmModal" class="modal">
   <div class="modal-content card" style="border: 1px solid var(--danger); max-width: 340px;">
     <h3 style="color: var(--danger); margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
       <i data-lucide="alert-triangle"></i> Critical Warning
     </h3>
     <p style="margin-bottom: 25px; line-height: 1.5; color: var(--text); font-size: 0.9rem;">
-      This will permanently delete <b>ALL</b> your ride history, fuel logs, and settings. This action cannot be undone.
+      ⚠️ This will permanently delete <b>ALL</b> your ride history, fuel logs, and settings. This action cannot be undone.
     </p>
     <div class="grid">
-      <button onclick="closeDeleteModal()" style="background: var(--glass); border: 1px solid var(--border); color: var(--text); box-shadow: none;">Cancel</button>
-      <button onclick="confirmDeleteAll()" class="btn-danger" style="box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);">Delete</button>
+      <button onclick="closeModal()" style="background: var(--glass); border: 1px solid var(--border); color: var(--text); box-shadow: none;">Cancel</button>
+      <button onclick="confirmDelete()" class="btn-danger" style="box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);">Delete Everything</button>
     </div>
   </div>
 </div>

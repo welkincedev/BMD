@@ -61,6 +61,26 @@ window.setHtml = (id, val) => {
     if (el) el.innerHTML = val;
 };
 
+// UX Helpers
+window.openRideModal = () => {
+    const modal = document.getElementById('rideModal');
+    if (!modal) return;
+    
+    // Auto-prefill Start KM with latest known odometer
+    const startKMInput = document.getElementById('startKM');
+    if (startKMInput) {
+        startKMInput.value = getPreviousOdometer();
+    }
+    
+    // Reset date to today
+    const dateInput = document.getElementById('rideDate');
+    if (dateInput) {
+        dateInput.value = new Date().toLocaleDateString('sv');
+    }
+
+    modal.classList.add('active');
+};
+
 // Decimal Helpers
 window.formatCurrency = (val) => "₹" + (parseFloat(val) || 0).toFixed(2);
 window.formatNumber = (val, dec = 2) => (parseFloat(val) || 0).toFixed(dec);
@@ -318,7 +338,16 @@ function updatePetrolUI() {
     });
 
     const lastKM = getPreviousOdometer();
-    setText('lastKMDisplay', `Previous Odometer: ${formatNumber(lastKM, 1)} km`);
+    setText('lastKMDisplay', `Previous: ${formatNumber(lastKM, 1)} km`);
+
+    // Hero Metrics
+    const latestMileage = petrols.length > 0 ? calculateMileage(petrols.length - 1) : 0;
+    setText('mileageHero', formatNumber(latestMileage, 2));
+    
+    const totalDist = rides.reduce((sum, r) => sum + ((parseFloat(r.endKM) || 0) - (parseFloat(r.startKM) || 0)), 0);
+    const totalFuelCost = petrols.reduce((sum, p) => sum + (parseFloat(p.cost) || 0), 0);
+    const avgExpPerKM = totalDist > 0 ? (totalFuelCost / totalDist) : 0;
+    setText('expenseHero', formatCurrency(avgExpPerKM) + " / km");
 }
 
 function updateRideUI() {
@@ -362,26 +391,54 @@ function updateSettingsUI() {
     if (initialKMEl) initialKMEl.value = parseFloat(settings.initialKM) || 0;
 }
 
-window.saveInitialKM = async () => {
-    const el = document.getElementById('initialKMInput');
-    if (!el) return;
-    const val = parseFloat(el.value) || 0;
-    
-    settings.initialKM = val;
-    localStorage.setItem('settings', JSON.stringify(settings));
+// Initial KM Save Handler
+document.getElementById("saveInitialKM")?.addEventListener("click", async () => {
+    const input = document.getElementById("initialKMInput");
+    const value = parseFloat(input.value);
 
+    if (isNaN(value) || value < 0) {
+        alert("Enter valid KM");
+        return;
+    }
+
+    settings.initialKM = value;
+
+    // Save locally
+    localStorage.setItem("bmd_settings", JSON.stringify(settings));
+
+    // Save to Firebase
     try {
         isSavingSettings = true;
+        
+        // Premium Feedback: Change icon to loading/check
+        const btn = document.getElementById("saveInitialKM");
+        const originalIcon = btn.innerHTML;
+        btn.innerHTML = '<i data-lucide="loader-2" class="spin"></i>';
+        if (window.lucide) lucide.createIcons();
+
         if (isFirebaseReady) {
-            await setDoc(doc(db, "users", userId, "config", "settings"), { initialKM: val }, { merge: true });
+            await setDoc(doc(db, "users", userId, "config", "settings"), settings);
         }
-        render(); // Force sync across Home and Mileage
+        
+        // Success state
+        btn.innerHTML = '<i data-lucide="check" style="color: #10b981"></i>';
+        if (window.lucide) lucide.createIcons();
+        
+        render(); // IMPORTANT
+        
+        // Revert icon after 2 seconds
+        setTimeout(() => {
+            btn.innerHTML = originalIcon;
+            if (window.lucide) lucide.createIcons();
+        }, 2000);
+
     } catch (err) {
         console.error("Failed to save initial KM:", err);
+        alert("Save failed, check connection.");
     } finally {
         isSavingSettings = false;
     }
-};
+});
 
 function updateExpenseUI() {
     const tbody = document.getElementById('expenseTable');
@@ -443,18 +500,33 @@ function calculateMileage(index) {
 function calculateStreak(data) {
     if (data.length === 0) return 0;
     let s = 0;
-    const today = new Date().toISOString().split('T')[0];
     const dates = [...new Set(data.map(r => r.date))].sort().reverse();
     
+    // Use local ISO date (YYYY-MM-DD)
     let current = new Date();
+    const getDS = (d) => d.toLocaleDateString('sv'); 
+
     for (let d of dates) {
-        if (d === current.toISOString().split('T')[0]) {
+        if (d === getDS(current)) {
             s++;
             current.setDate(current.getDate() - 1);
         } else break;
     }
     return s;
 }
+
+// =====================
+// DATA EXPORT
+// =====================
+window.exportData = () => {
+    const data = { rides, petrols, expenses, settings, exportDate: new Date().toISOString() };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `bmd_backup_${new Date().toLocaleDateString('sv')}.json`;
+    a.click();
+};
 
 // =====================
 // CHARTING
@@ -496,20 +568,53 @@ function initCharts() {
         }
     }
 
-    // 2. Mileage Chart
+    // 2. Mileage Chart (Premium Line)
     const ctxMileage = document.getElementById('mileageChart');
     if (ctxMileage) {
         const milData = petrols.map((_, i) => calculateMileage(i).toFixed(1));
         const milLabels = petrols.map(p => new Date(p.date || Date.now()).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+        
         if (charts.mileage) {
             charts.mileage.data.labels = milLabels;
             charts.mileage.data.datasets[0].data = milData;
             charts.mileage.update();
         } else {
+            const gradient = ctxMileage.getContext('2d').createLinearGradient(0, 0, 0, 400);
+            gradient.addColorStop(0, 'rgba(16, 185, 129, 0.4)');
+            gradient.addColorStop(1, 'rgba(16, 185, 129, 0)');
+
             charts.mileage = new Chart(ctxMileage, {
-                type: 'bar',
-                data: { labels: milLabels, datasets: [{ label: 'KM/L', data: milData, backgroundColor: '#10b981' }] },
-                options: { responsive: true, maintainAspectRatio: false }
+                type: 'line',
+                data: { 
+                    labels: milLabels, 
+                    datasets: [{ 
+                        label: 'KM/L', 
+                        data: milData, 
+                        borderColor: '#10b981',
+                        backgroundColor: gradient,
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: '#10b981',
+                        pointBorderColor: 'rgba(255,255,255,0.8)',
+                        pointHoverRadius: 6
+                    }] 
+                },
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { 
+                            beginAtZero: false,
+                            grid: { color: 'rgba(255,255,255,0.05)' },
+                            ticks: { color: 'rgba(255,255,255,0.5)' }
+                        },
+                        x: { 
+                            grid: { display: false },
+                            ticks: { color: 'rgba(255,255,255,0.5)' }
+                        }
+                    }
+                }
             });
         }
     }
@@ -681,45 +786,55 @@ window.deleteEntry = async function(type, id) {
 };
 
 // Data Purge Logic
-async function deleteCollection(colRef) {
-    const snapshot = await getDocs(colRef);
-    const promises = snapshot.docs.map(doc => deleteDoc(doc.ref));
-    await Promise.all(promises);
+async function deleteCollection(path) {
+    const snap = await getDocs(collection(db, path));
+    await Promise.all(snap.docs.map(d => deleteDoc(d.ref)));
 }
 
-window.openModal = () => {
-    const modal = document.getElementById('confirmModal');
-    if (modal) modal.classList.add('active');
+async function deleteAllData() {
+    try {
+        if (isFirebaseReady) {
+            await deleteCollection(`users/${userId}/rides`);
+            await deleteCollection(`users/${userId}/petrols`);
+            await deleteCollection(`users/${userId}/expenses`);
+            await deleteDoc(doc(db, "users", userId, "config", "settings"));
+        }
+
+        // Clear local
+        rides = [];
+        petrols = [];
+        expenses = [];
+        settings = { savingPercent: 30, monthlyGoal: 8000, initialKM: 0 };
+
+        localStorage.clear();
+
+        render();
+        alert("All data deleted");
+        window.location.reload();
+
+    } catch (err) {
+        console.error(err);
+        alert("Delete failed");
+    }
+}
+
+let confirmDeleteCallback = null;
+
+window.openDeleteModal = () => {
+    const modal = document.getElementById("confirmModal");
+    if (modal) modal.classList.add("active");
+    confirmDeleteCallback = deleteAllData;
 };
 
 window.closeModal = () => {
-    const modal = document.getElementById('confirmModal');
-    if (modal) modal.classList.remove('active');
+    const modal = document.getElementById("confirmModal");
+    if (modal) modal.classList.remove("active");
 };
 
 window.confirmDelete = async () => {
     closeModal();
-    if (!userId) {
-        localStorage.clear();
-        window.location.reload();
-        return;
-    }
-
-    document.body.classList.add("loading");
-    try {
-        await deleteCollection(collection(db, "users", userId, "rides"));
-        await deleteCollection(collection(db, "users", userId, "petrols"));
-        await deleteCollection(collection(db, "users", userId, "expenses"));
-        await deleteDoc(doc(db, "users", userId, "config", "settings"));
-        
-        localStorage.clear();
-        alert("Account reset successful.");
-        window.location.reload();
-    } catch (err) {
-        console.error("Purge failed:", err);
-        alert("Failed to delete all data. Check connection.");
-    } finally {
-        document.body.classList.remove("loading");
+    if (confirmDeleteCallback) {
+        await confirmDeleteCallback();
     }
 };
 
@@ -777,26 +892,17 @@ async function migrateLocalData(newUid) {
 // =====================
 onAuthStateChanged(auth, async (user) => {
     if (user) {
-        console.log("User logged in:", user.uid);
+        console.log("Status: User authenticated", user.uid);
         userId = user.uid;
         document.body.classList.add("logged-in");
         
-        // One-time migration
+        // One-time migration of local data to cloud
         await migrateLocalData(user.uid);
         
-        // Start Sync
+        // Start Real-time Sync
         await initFirebase();
-        
-        // Final UI Polish
-        render(); 
-        
-        // Start Sync
-        await initFirebase();
-        
-        // Final UI Polish
-        render(); 
     } else {
-        console.log("No user logged in.");
+        console.log("Status: No active session.");
         userId = null;
         document.body.classList.remove("logged-in");
         document.body.classList.remove("loading");

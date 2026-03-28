@@ -40,7 +40,7 @@
     <section id="home" class="screen active">
       <div class="card streak-card">
         <h3 id="streak">🔥 0 Day Streak</h3>
-        <button class="btn-add" onclick="document.getElementById('rideModal').classList.add('active')" aria-label="Add New Ride">
+        <button class="btn-add" onclick="openRideModal()" aria-label="Add New Ride">
           <i data-lucide="plus"></i> Add Ride
         </button>
       </div>
@@ -118,65 +118,84 @@
 
     <!-- MILEAGE SCREEN -->
     <section id="mileage-tab" class="screen">
-      <div class="card card-purple">
-        <h3 style="margin-bottom: 5px;">Initial Odometer (KM)</h3>
-        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">Set this to your odometer reading at your very first fill-up.</p>
-        <div class="form-group" style="margin-bottom: 0;">
-          <input type="number" id="initialKMInput" step="0.1" placeholder="0" onchange="saveInitialKM()">
+      <!-- Top Hero Summary Card -->
+      <div class="hero-card">
+        <p class="label">Fuel Efficiency</p>
+        <h2 id="mileageHero" class="value-large">0.00</h2>
+        <p class="label" style="font-size: 0.75rem; margin-bottom: 5px;">Avg Expense per KM</p>
+        <div class="sub-value" id="expenseHero">₹0.00</div>
+        <div class="hero-icon"><i data-lucide="fuel"></i></div>
+      </div>
+
+      <div class="grid">
+        <!-- New Petrol Entry Card -->
+        <div class="card" style="padding: 16px;">
+          <h3 style="margin-bottom: 12px; font-size: 0.95rem; display: flex; align-items: center; gap: 8px;">
+            <i data-lucide="plus-circle" style="color: var(--primary); width: 18px;"></i> Fuel Entry
+          </h3>
+          <form id="petrolForm">
+            <div class="form-group">
+              <label style="font-size: 0.75rem;">KM Reading</label>
+              <input type="number" id="petrolKM" step="0.1" placeholder="e.g. 5420" required style="padding: 10px; border-radius: 12px;">
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+              <div class="form-group">
+                <label style="font-size: 0.75rem;">Litres</label>
+                <input type="number" id="litres" step="0.01" placeholder="5.2" required style="padding: 10px; border-radius: 12px;">
+              </div>
+              <div class="form-group">
+                <label style="font-size: 0.75rem;">Cost (₹)</label>
+                <input type="number" id="cost" step="0.01" placeholder="550" required style="padding: 10px; border-radius: 12px;">
+              </div>
+            </div>
+            <button type="submit" style="padding: 12px; border-radius: 12px; font-size: 0.9rem;">Add Entry</button>
+          </form>
+        </div>
+
+        <!-- Initial Odometer Card -->
+        <div class="card" style="padding: 16px;">
+          <h3 style="margin-bottom: 5px; font-size: 0.95rem; display: flex; align-items: center; gap: 8px;">
+            <i data-lucide="map-pin" style="color: var(--warning); width: 18px;"></i> Initial Odometer
+          </h3>
+          <p style="font-size: 0.7rem; color: var(--text-muted); margin-bottom: 10px;">Used when no fuel logs exist</p>
+          <div class="km-input-row" style="margin-bottom: 10px;">
+            <input type="number" id="initialKMInput" step="0.1" placeholder="0" style="padding: 11px; border-radius: 12px; font-size: 0.9rem;">
+            <button id="saveInitialKM" class="icon-btn" aria-label="Save Initial KM" style="width: 44px; height: 44px; border-radius: 12px;">
+              <i data-lucide="check"></i>
+            </button>
+          </div>
+          <p id="lastKMDisplay" style="font-size: 0.75rem; color: var(--secondary); font-weight: 500;">Previous: 0 km</p>
         </div>
       </div>
 
-      <div class="card">
-        <h3 style="margin-bottom: 5px;">New Petrol Entry</h3>
-        <p id="lastKMDisplay" style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">Previous Odometer: 0 km</p>
-        <form id="petrolForm">
-          <div class="form-group">
-            <label>Current Odometer Reading (KM)</label>
-            <input type="number" id="petrolKM" step="0.1" placeholder="e.g. 5420" required>
-          </div>
-          <div class="grid">
-            <div class="form-group">
-              <label>Litres</label>
-              <input type="number" id="litres" step="0.01" placeholder="e.g. 5.2" required>
-            </div>
-            <div class="form-group">
-              <label>Cost (₹)</label>
-              <input type="number" id="cost" step="0.01" placeholder="e.g. 550" required>
-            </div>
-          </div>
-          <button type="submit" aria-label="Add Fuel Entry">Add Fuel Entry</button>
-        </form>
+      <!-- Mileage Trend Chart Card -->
+      <div class="card" style="margin-top: 10px;">
+        <h3 style="margin-bottom: 15px; font-size: 1rem; display: flex; align-items: center; gap: 10px;">
+          <i data-lucide="line-chart" style="color: var(--primary)"></i> Mileage Trend (KM/L)
+        </h3>
+        <div class="chart-container" style="height: 180px;">
+          <canvas id="mileageChart"></canvas>
+        </div>
       </div>
 
+      <!-- Petrol History Table Card -->
       <div class="card">
-        <h3 style="margin-bottom: 10px; font-size: 1rem;">Fuel History</h3>
+        <h3 style="margin-bottom: 10px; font-size: 1rem; display: flex; align-items: center; gap: 10px;">
+          <i data-lucide="history" style="color: var(--primary)"></i> Fuel History
+        </h3>
         <div class="scroll-x">
-          <table>
+          <table class="premium-table">
             <thead>
               <tr>
                 <th>Date</th>
                 <th>KM</th>
-                <th>Litres</th>
-                <th>Mileage</th>
+                <th>L</th>
+                <th>KM/L</th>
                 <th></th>
               </tr>
             </thead>
             <tbody id="petrolTable"></tbody>
           </table>
-        </div>
-      </div>
-
-      <div class="card">
-        <h3 style="margin-bottom: 15px; font-size: 1rem;">Mileage Performance</h3>
-        <div class="chart-container">
-          <canvas id="mileageChart"></canvas>
-        </div>
-        <div style="margin-top: 20px; font-size: 0.8rem; color: var(--text-muted); background: rgba(255,255,255,0.03); padding: 12px; border-radius: 12px; line-height: 1.4;">
-          <p style="color: var(--primary); font-weight: 600; margin-bottom: 4px;">💡 How is mileage calculated?</p>
-          We use the "Fill-to-Fill" method:<br>
-          1. Fill tank to full, note current KM.<br>
-          2. Next time you fill to full, note new KM and Litres added.<br>
-          3. Mileage = (New KM - Old KM) / Litres added.
         </div>
       </div>
     </section>
@@ -273,10 +292,12 @@
       </div>
 
       <div class="card card-orange">
-        <h3 style="margin-bottom: 15px;">Account & Data</h3>
-        <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 15px;">Log out of your account or reset local data.</p>
+        <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 15px;">Log out, export your data, or reset local database.</p>
         <button onclick="logout()" class="btn-danger" aria-label="Logout" style="margin-bottom: 10px;">Logout from Google</button>
-        <button onclick="openModal()" class="btn-danger" style="background: linear-gradient(135deg, #ef4444, #7f1d1d); border: 1px solid rgba(255,255,255,0.1);" aria-label="Delete All Data">Delete All Data</button>
+        <button onclick="exportData()" class="btn-back" style="width: 100%; justify-content: center; margin-bottom: 10px; background: var(--glass); border: 1px solid var(--border);">
+          <i data-lucide="download"></i> Download Backup (JSON)
+        </button>
+        <button onclick="openDeleteModal()" class="btn-danger" style="background: linear-gradient(135deg, #ef4444, #7f1d1d); border: 1px solid rgba(255, 255, 255, 0.1);" aria-label="Delete All Data">Delete All Data</button>
         <p style="color: var(--danger); font-size: 0.75rem; margin-top: 10px; text-align: center; opacity: 0.8;">⚠️ This action is irreversible</p>
       </div>
     </section>

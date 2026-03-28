@@ -32,12 +32,14 @@ body {
   background-attachment: fixed;
   color: var(--text);
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  overscroll-behavior: none;
 }
 
-/* Auth & Login */
+/* Auth & Login Gate */
 .login-screen {
   position: fixed;
   top: 0;
@@ -49,17 +51,27 @@ body {
   align-items: center;
   justify-content: center;
   z-index: 5000;
-  transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-body.logged-in .login-screen {
+  transition: opacity 0.5s ease, visibility 0.5s;
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
 }
 
-body:not(.logged-in) .app {
-  display: none;
+/* Base App State: Hidden till auth resolved */
+.app-container {
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+
+/* Shown based on Auth Status */
+body.auth-resolved.logged-in .app-container {
+  opacity: 1;
+}
+
+body.auth-resolved:not(.logged-in) .login-screen {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: all;
 }
 
 .login-card {
@@ -164,6 +176,7 @@ body:not(.logged-in) .app {
   margin: 0 auto;
   width: 100%;
   min-height: 100vh;
+  min-height: 100dvh;
   background: rgba(15, 23, 42, 0.6);
   position: relative;
   display: flex;
@@ -214,13 +227,12 @@ body:not(.logged-in) .app {
   flex: 1;
   padding: 20px 16px;
   padding-top: 80px;
-  /* Space for fixed header */
-  padding-bottom: 100px;
-  /* Space for fixed navbar */
+  padding-bottom: 120px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
   width: 100%;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Screen Transitions */

@@ -121,15 +121,19 @@ const safeCreateIcons = () => {
 // =====================
 
 async function initFirebase() {
-    document.body.classList.add("loading");
+    const isInitialLoad = !document.body.classList.contains("auth-resolved");
+    
+    // Only show "Syncing Data" overlay if we already resolved auth once (i.e., user is navigating)
+    // For the very first load, we want to stay on the clean background.
+    if (!isInitialLoad) {
+        document.body.classList.add("loading");
+    }
     
     // Fail-safe: Remove loading screen after 3 seconds if it hangs
     setTimeout(() => {
-        if (document.body.classList.contains("loading")) {
-            console.warn("Initial sync timed out. Proceeding with available data.");
-            document.body.classList.remove("loading");
-            render();
-        }
+        document.body.classList.remove("loading");
+        document.body.classList.add("auth-resolved"); // Ensure we eventually show SOMETHING
+        render();
     }, 3000);
 
     if (!db) {
@@ -157,6 +161,7 @@ function setupRealtimeListeners() {
         loadedCount++;
         if (loadedCount >= 4) {
             document.body.classList.remove("loading");
+            document.body.classList.add("auth-resolved"); 
             render();
         }
     };
@@ -922,20 +927,20 @@ async function migrateLocalData(newUid) {
 // INIT
 // =====================
 onAuthStateChanged(auth, async (user) => {
+    // Crucial: This fires once on load. 
+    // If no user, we resolve immediately. If user, we resolve after sync.
     if (user) {
         console.log("Status: User authenticated", user.uid);
         userId = user.uid;
         document.body.classList.add("logged-in");
         
-        // One-time migration of local data to cloud
         await migrateLocalData(user.uid);
-        
-        // Start Real-time Sync
         await initFirebase();
     } else {
         console.log("Status: No active session.");
         userId = null;
         document.body.classList.remove("logged-in");
         document.body.classList.remove("loading");
+        document.body.classList.add("auth-resolved"); // Show login screen
     }
 });

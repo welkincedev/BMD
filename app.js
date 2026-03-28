@@ -244,6 +244,7 @@ function performRender() {
     safeRun("PetrolUI", updatePetrolUI);
     safeRun("ExpenseUI", updateExpenseUI);
     safeRun("InsightsUI", updateInsightsUI);
+    safeRun("SettingsUI", updateSettingsUI);
     safeRun("Charts", initCharts);
     safeRun("Icons", safeCreateIcons);
     
@@ -300,8 +301,20 @@ function updatePetrolUI() {
         tbody.appendChild(tr);
     });
 
-    const lastKM = petrols.length > 0 ? petrols[petrols.length-1].km : 0;
+    const lastKM = petrols.length > 0 ? (parseFloat(petrols[petrols.length-1].km) || 0) : 0;
     setText('lastKMDisplay', `Previous Odometer: ${formatNumber(lastKM, 1)} km`);
+}
+
+function updateSettingsUI() {
+    if (isSavingSettings) return;
+
+    const goalEl = document.getElementById('monthlyGoalInput');
+    const savingsEl = document.getElementById('savingsPercentInput');
+    const initialKMEl = document.getElementById('initialKMInput');
+
+    if (goalEl) goalEl.value = parseFloat(settings.monthlyGoal) || 8000;
+    if (savingsEl) savingsEl.value = parseFloat(settings.savingPercent) || 30;
+    if (initialKMEl) initialKMEl.value = parseFloat(settings.initialKM) || 0;
 }
 
 function updateExpenseUI() {
@@ -670,11 +683,11 @@ onAuthStateChanged(auth, async (user) => {
         // Final UI Polish
         render(); 
         
-        // Update Settings UI
-        if (document.getElementById('monthlyGoalInput')) {
-            document.getElementById('monthlyGoalInput').value = settings.monthlyGoal || 8000;
-        }
+        // Start Sync
+        await initFirebase();
         
+        // Final UI Polish
+        render(); 
     } else {
         console.log("No user logged in.");
         userId = null;

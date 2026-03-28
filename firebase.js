@@ -28,7 +28,7 @@ import {
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-    apiKey: "AIzaSyAB0uKbCylOiSaX5ltE8K3gasK5d1si_BI",
+    apiKey: "",
     authDomain: "bmdapp-a001.firebaseapp.com",
     projectId: "bmdapp-a001",
     storageBucket: "bmdapp-a001.firebasestorage.app",

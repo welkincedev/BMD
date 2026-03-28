@@ -355,6 +355,23 @@ function updateSettingsUI() {
     if (initialKMEl) initialKMEl.value = parseFloat(settings.initialKM) || 0;
 }
 
+window.saveInitialKM = async () => {
+    const el = document.getElementById('initialKMInput');
+    if (!el) return;
+    const val = parseFloat(el.value) || 0;
+    
+    settings.initialKM = val;
+    try {
+        isSavingSettings = true;
+        await setDoc(doc(db, "users", userId, "config", "settings"), { initialKM: val }, { merge: true });
+        render(); // Sync all odometer hints
+    } catch (err) {
+        console.error("Failed to save initial KM:", err);
+    } finally {
+        isSavingSettings = false;
+    }
+};
+
 function updateExpenseUI() {
     const tbody = document.getElementById('expenseTable');
     if (!tbody) return;
@@ -611,12 +628,10 @@ document.getElementById('expenseForm')?.addEventListener('submit', async (e) => 
 window.saveSettings = async () => {
     const newGoals = parseFloat(document.getElementById('monthlyGoalInput').value) || 8000;
     const newSavings = parseFloat(document.getElementById('savingsPercentInput').value) || 30;
-    const newInitialKM = parseFloat(document.getElementById('initialKMInput').value) || 0;
 
     // Update local state first for immediate UI feel
     settings.monthlyGoal = newGoals;
     settings.savingPercent = newSavings;
-    settings.initialKM = newInitialKM;
 
     if (isFirebaseReady) {
         try {
@@ -651,6 +666,42 @@ window.deleteEntry = async function(type, id) {
         }
     } catch (err) {
         console.error("Delete failed:", err);
+    }
+};
+
+// Data Purge Logic
+window.showDeleteModal = () => document.getElementById('deleteConfirmModal').classList.add('active');
+window.closeDeleteModal = () => document.getElementById('deleteConfirmModal').classList.remove('active');
+
+window.confirmDeleteAll = async () => {
+    closeDeleteModal();
+    if (!userId) {
+        localStorage.clear();
+        window.location.reload();
+        return;
+    }
+
+    document.body.classList.add("loading");
+    try {
+        const collections = ["rides", "petrols", "expenses"];
+        for (const coll of collections) {
+            const q = query(collection(db, "users", userId, coll));
+            const snap = await getDocs(q);
+            for (const d of snap.docs) {
+                await deleteDoc(d.ref);
+            }
+        }
+        // Delete settings
+        await deleteDoc(doc(db, "users", userId, "config", "settings"));
+        
+        localStorage.clear();
+        alert("Success! Your account has been reset.");
+        window.location.reload();
+    } catch (err) {
+        console.error("Purge failed:", err);
+        alert("Failed to delete all data. Please check your connection.");
+    } finally {
+        document.body.classList.remove("loading");
     }
 };
 

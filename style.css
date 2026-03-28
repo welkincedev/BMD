@@ -122,7 +122,27 @@ body:not(.logged-in) .app {
 .btn-danger {
   background: linear-gradient(135deg, #ef4444, #991b1b);
   box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
-  margin-top: 20px;
+}
+
+.btn-back {
+  background: var(--glass);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 8px 16px;
+  border-radius: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: auto;
+  transition: all 0.3s;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.btn-back:hover {
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateX(-3px);
 }
 
 .app {

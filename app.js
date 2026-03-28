@@ -61,6 +61,10 @@ window.setHtml = (id, val) => {
     if (el) el.innerHTML = val;
 };
 
+// Decimal Helpers
+window.formatCurrency = (val) => "₹" + (parseFloat(val) || 0).toFixed(2);
+window.formatNumber = (val, dec = 2) => (parseFloat(val) || 0).toFixed(dec);
+
 // Safe Icon Creation
 const safeCreateIcons = () => {
     try {
@@ -248,30 +252,29 @@ function performRender() {
 }
 
 function updateDashboard() {
-    const totalEarn = rides.reduce((sum, r) => sum + Number(r.earnings), 0);
-    const totalDist = rides.reduce((sum, r) => sum + (Number(r.endKM) - Number(r.startKM)), 0);
+    const totalEarn = rides.reduce((sum, r) => sum + (parseFloat(r.earnings) || 0), 0);
+    const totalDist = rides.reduce((sum, r) => sum + ((parseFloat(r.endKM) || 0) - (parseFloat(r.startKM) || 0)), 0);
     
-    setText('earn', `₹${totalEarn.toLocaleString()}`);
-    setText('distance', `${totalDist.toLocaleString()} km`);
+    setText('earn', formatCurrency(totalEarn));
+    setText('distance', `${formatNumber(totalDist, 1)} km`);
     
-    const avgKm = totalDist > 0 ? (totalEarn / totalDist).toFixed(2) : 0;
-    setText('avgKm', `₹${avgKm}`);
+    const avgKm = totalDist > 0 ? (totalEarn / totalDist) : 0;
+    setText('avgKm', formatCurrency(avgKm));
     
-    const latestLitres = petrols.length > 0 ? petrols[petrols.length - 1].litres : 0;
-    const latestMileage = petrols.length > 0 ? calculateMileage(petrols.length - 1).toFixed(1) : 0;
-    setText('mileage', `${latestMileage} km/l`);
+    const latestMileage = petrols.length > 0 ? calculateMileage(petrols.length - 1) : 0;
+    setText('mileage', `${formatNumber(latestMileage, 2)} km/l`);
 
     // Goal Progress
-    const currentProgress = (totalEarn / settings.monthlyGoal) * 100;
+    const currentProgress = (totalEarn / (parseFloat(settings.monthlyGoal) || 8000)) * 100;
     const bar = document.getElementById('bar');
     if (bar) bar.style.width = Math.min(currentProgress, 100) + '%';
-    setText('savingsText', `₹${totalEarn.toLocaleString()} / ₹${settings.monthlyGoal.toLocaleString()}`);
+    setText('savingsText', `${formatCurrency(totalEarn)} / ${formatCurrency(settings.monthlyGoal)}`);
     
     // Projections
-    const daysLeft = 30 - new Date().getDate();
-    const needed = Math.max(0, settings.monthlyGoal - totalEarn);
-    const dailyNeed = daysLeft > 0 ? (needed / daysLeft).toFixed(0) : 0;
-    setText('dailyNeed', `₹${dailyNeed}`);
+    const daysLeft = 31 - new Date().getDate(); // Better month estimation
+    const needed = Math.max(0, (parseFloat(settings.monthlyGoal) || 8000) - totalEarn);
+    const dailyNeed = daysLeft > 0 ? (needed / daysLeft) : 0;
+    setText('dailyNeed', formatCurrency(dailyNeed));
     setText('projection', daysLeft);
 
     // Streak
@@ -285,20 +288,20 @@ function updatePetrolUI() {
     tbody.innerHTML = '';
     
     petrols.forEach((p, i) => {
-        const mil = calculateMileage(i).toFixed(1);
+        const mil = calculateMileage(i);
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td>${new Date(p.date || Date.now()).toLocaleDateString()}</td>
-            <td>${p.km}</td>
-            <td>${p.litres}L</td>
-            <td>${mil}</td>
+            <td>${formatNumber(p.km, 1)}</td>
+            <td>${formatNumber(p.litres, 2)}L</td>
+            <td>${formatNumber(mil, 2)}</td>
             <td><button class="action-btn" onclick="deleteEntry('petrol', '${p.id}')">×</button></td>
         `;
         tbody.appendChild(tr);
     });
 
     const lastKM = petrols.length > 0 ? petrols[petrols.length-1].km : 0;
-    setText('lastKMDisplay', `Previous Odometer: ${lastKM} km`);
+    setText('lastKMDisplay', `Previous Odometer: ${formatNumber(lastKM, 1)} km`);
 }
 
 function updateExpenseUI() {
@@ -311,7 +314,7 @@ function updateExpenseUI() {
         tr.innerHTML = `
             <td>${new Date(e.date || Date.now()).toLocaleDateString()}</td>
             <td>${e.category}</td>
-            <td>₹${e.amount}</td>
+            <td>${formatCurrency(e.amount)}</td>
             <td><button class="action-btn" onclick="deleteEntry('expense', '${e.id}')">×</button></td>
         `;
         tbody.appendChild(tr);
@@ -322,16 +325,16 @@ function updateInsightsUI() {
     const container = document.getElementById('financial-metrics');
     if (!container) return;
     
-    const totalEarn = rides.reduce((sum, r) => sum + Number(r.earnings), 0);
-    const totalFuel = petrols.reduce((sum, p) => sum + Number(p.cost), 0);
-    const totalExp = expenses.reduce((sum, e) => sum + Number(e.amount), 0);
+    const totalEarn = rides.reduce((sum, r) => sum + (parseFloat(r.earnings) || 0), 0);
+    const totalFuel = petrols.reduce((sum, p) => sum + (parseFloat(p.cost) || 0), 0);
+    const totalExp = expenses.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
     const net = totalEarn - totalFuel - totalExp;
     
     const metrics = [
-        { label: 'Net Profit', value: `₹${net.toLocaleString()}`, color: net >= 0 ? 'green' : 'orange' },
-        { label: 'Fuel Cost', value: `₹${totalFuel.toLocaleString()}`, color: 'blue' },
-        { label: 'Expenses', value: `₹${totalExp.toLocaleString()}`, color: 'purple' },
-        { label: 'Avg / KM', value: `₹${(totalEarn / (rides.reduce((s,r) => s + (r.endKM-r.startKM), 0) || 1)).toFixed(2)}`, color: 'teal' }
+        { label: 'Net Profit', value: formatCurrency(net), color: net >= 0 ? 'green' : 'orange' },
+        { label: 'Fuel Cost', value: formatCurrency(totalFuel), color: 'blue' },
+        { label: 'Expenses', value: formatCurrency(totalExp), color: 'purple' },
+        { label: 'Avg / KM', value: formatCurrency(totalEarn / (rides.reduce((s,r) => s + (parseFloat(r.endKM-r.startKM) || 0), 0) || 1)), color: 'teal' }
     ];
     
     container.innerHTML = metrics.map(m => `
@@ -348,13 +351,14 @@ function updateInsightsUI() {
 
 function calculateMileage(index) {
     if (index === 0) {
-        if (settings.initialKM > 0 && petrols[0].km > settings.initialKM) {
-            return (petrols[0].km - settings.initialKM) / petrols[0].litres;
+        const initKM = parseFloat(settings.initialKM) || 0;
+        if (initKM > 0 && parseFloat(petrols[0].km) > initKM) {
+            return (parseFloat(petrols[0].km) - initKM) / parseFloat(petrols[0].litres);
         }
         return 0;
     }
-    const dist = petrols[index].km - petrols[index-1].km;
-    return dist / petrols[index].litres;
+    const dist = parseFloat(petrols[index].km) - parseFloat(petrols[index-1].km);
+    return dist / parseFloat(petrols[index].litres);
 }
 
 function calculateStreak(data) {
@@ -398,7 +402,7 @@ function initCharts() {
             const d = new Date();
             d.setDate(d.getDate() - (6 - i));
             const dayStr = d.toISOString().split('T')[0];
-            return rides.filter(r => r.date === dayStr).reduce((s, r) => s + Number(r.earnings), 0);
+            return rides.filter(r => r.date === dayStr).reduce((s, r) => s + (parseFloat(r.earnings) || 0), 0);
         });
         if (charts.homeWeekly) {
             charts.homeWeekly.data.labels = labels;
@@ -452,9 +456,9 @@ function initCharts() {
     // 4. Insights Comparison
     const ctxComp = document.getElementById('insightComparisonChart');
     if (ctxComp) {
-        const totalEarn = rides.reduce((sum, r) => sum + Number(r.earnings), 0);
-        const totalFuel = petrols.reduce((sum, p) => sum + Number(p.cost), 0);
-        const totalExp = expenses.reduce((sum, e) => sum + Number(e.amount), 0);
+        const totalEarn = rides.reduce((sum, r) => sum + (parseFloat(r.earnings) || 0), 0);
+        const totalFuel = petrols.reduce((sum, p) => sum + (parseFloat(p.cost) || 0), 0);
+        const totalExp = expenses.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
         if (charts.comparison) {
             charts.comparison.data.datasets[0].data = [totalEarn, totalFuel + totalExp];
             charts.comparison.update();
@@ -474,11 +478,24 @@ function initCharts() {
 
 document.getElementById('rideForm')?.addEventListener('submit', async (e) => {
     e.preventDefault();
+    const start = parseFloat(document.getElementById('startKM').value);
+    const end = parseFloat(document.getElementById('endKM').value);
+    const earn = parseFloat(document.getElementById('earnings').value);
+    
+    if (isNaN(start) || isNaN(end) || isNaN(earn)) {
+        alert("Please enter valid numbers.");
+        return;
+    }
+    if (end <= start) {
+        alert("End KM must be greater than Start KM.");
+        return;
+    }
+
     const data = {
         date: document.getElementById('rideDate').value || new Date().toISOString().split('T')[0],
-        startKM: Number(document.getElementById('startKM').value),
-        endKM: Number(document.getElementById('endKM').value),
-        earnings: Number(document.getElementById('earnings').value),
+        startKM: start,
+        endKM: end,
+        earnings: earn,
         timestamp: serverTimestamp()
     };
     
@@ -491,11 +508,24 @@ document.getElementById('rideForm')?.addEventListener('submit', async (e) => {
 
 document.getElementById('petrolForm')?.addEventListener('submit', async (e) => {
     e.preventDefault();
+    const km = parseFloat(document.getElementById('petrolKM').value);
+    const litres = parseFloat(document.getElementById('litres').value);
+    const cost = parseFloat(document.getElementById('cost').value);
+
+    if (isNaN(km) || isNaN(litres) || isNaN(cost)) {
+        alert("Please enter valid numbers.");
+        return;
+    }
+    if (litres <= 0) {
+        alert("Litres must be greater than 0.");
+        return;
+    }
+
     const data = {
         date: new Date().toISOString().split('T')[0],
-        km: Number(document.getElementById('petrolKM').value),
-        litres: Number(document.getElementById('litres').value),
-        cost: Number(document.getElementById('cost').value),
+        km: km,
+        litres: litres,
+        cost: cost,
         timestamp: serverTimestamp()
     };
 
@@ -507,10 +537,17 @@ document.getElementById('petrolForm')?.addEventListener('submit', async (e) => {
 
 document.getElementById('expenseForm')?.addEventListener('submit', async (e) => {
     e.preventDefault();
+    const amount = parseFloat(document.getElementById('expenseAmount').value);
+
+    if (isNaN(amount)) {
+        alert("Please enter a valid amount.");
+        return;
+    }
+
     const data = {
         date: new Date().toISOString().split('T')[0],
         category: document.getElementById('expenseCategory').value,
-        amount: Number(document.getElementById('expenseAmount').value),
+        amount: amount,
         timestamp: serverTimestamp()
     };
 
@@ -521,9 +558,9 @@ document.getElementById('expenseForm')?.addEventListener('submit', async (e) => 
 });
 
 window.saveSettings = async () => {
-    const newGoals = Number(document.getElementById('monthlyGoalInput').value) || 8000;
-    const newSavings = Number(document.getElementById('savingsPercentInput').value) || 30;
-    const newInitialKM = Number(document.getElementById('initialKMInput').value) || 0;
+    const newGoals = parseFloat(document.getElementById('monthlyGoalInput').value) || 8000;
+    const newSavings = parseFloat(document.getElementById('savingsPercentInput').value) || 30;
+    const newInitialKM = parseFloat(document.getElementById('initialKMInput').value) || 0;
 
     // Update local state first for immediate UI feel
     settings.monthlyGoal = newGoals;

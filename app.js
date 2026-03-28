@@ -41,6 +41,7 @@ let settings = {
 };
 
 let isFirebaseReady = false;
+let isSavingSettings = false;
 
 // Global chart instances
 const charts = {
@@ -144,6 +145,10 @@ function setupRealtimeListeners() {
 
     // 4. Settings
     onSnapshot(doc(db, "users", userId, "config", "settings"), (snap) => {
+        if (isSavingSettings) {
+            console.log("onSnapshot: Save in progress, skipping update.");
+            return;
+        }
         if (snap.exists()) {
             settings = snap.data();
         } else {
@@ -212,7 +217,16 @@ window.switchTab = (tabId) => {
     render();
 };
 
+let renderTimeout = null;
 function render() {
+    if (renderTimeout) clearTimeout(renderTimeout);
+    renderTimeout = setTimeout(() => {
+        performRender();
+        renderTimeout = null;
+    }, 50);
+}
+
+function performRender() {
     console.log("--- Starting Render Cycle ---");
     const safeRun = (name, fn) => {
         try {
@@ -507,21 +521,38 @@ document.getElementById('expenseForm')?.addEventListener('submit', async (e) => 
 });
 
 window.saveSettings = async () => {
-    settings.monthlyGoal = Number(document.getElementById('monthlyGoalInput').value) || 8000;
-    settings.savingPercent = Number(document.getElementById('savingsPercentInput').value) || 30;
-    settings.initialKM = Number(document.getElementById('initialKMInput').value) || 0;
+    const newGoals = Number(document.getElementById('monthlyGoalInput').value) || 8000;
+    const newSavings = Number(document.getElementById('savingsPercentInput').value) || 30;
+    const newInitialKM = Number(document.getElementById('initialKMInput').value) || 0;
+
+    // Update local state first for immediate UI feel
+    settings.monthlyGoal = newGoals;
+    settings.savingPercent = newSavings;
+    settings.initialKM = newInitialKM;
 
     if (isFirebaseReady) {
         try {
+            isSavingSettings = true;
             document.body.classList.add("loading");
+            
             await setDoc(doc(db, "users", userId, "config", "settings"), settings);
+            
+            console.log("Settings saved to Firestore successfully.");
+            alert("Configurations saved!");
+            switchTab('home');
         } catch (err) {
             console.error("Save Settings Failed:", err);
+            alert("Failed to save settings. Please try again.");
+        } finally {
+            isSavingSettings = false;
             document.body.classList.remove("loading");
         }
+    } else {
+        // Fallback for offline/local
+        localStorage.setItem("bmd_settings", JSON.stringify(settings));
+        alert("Configurations saved locally!");
+        switchTab('home');
     }
-    alert("Configurations saved!");
-    switchTab('home');
 };
 
 window.deleteEntry = async function(type, id) {

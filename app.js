@@ -43,12 +43,21 @@ let settings = {
 let isFirebaseReady = false;
 let isSavingSettings = false;
 
-// Global chart instances
 const charts = {
     homeWeekly: null,
     mileage: null,
     expensePie: null,
     comparison: null
+};
+
+// 🗺 Page Detection
+const getCurrentPage = () => {
+    const path = window.location.pathname;
+    if (path.endsWith('mileage.html')) return 'mileage';
+    if (path.endsWith('expense.html')) return 'expense';
+    if (path.endsWith('insights.html')) return 'insights';
+    if (path.endsWith('settings.html')) return 'settings';
+    return 'home'; // Default to index.html
 };
 
 // 🛠 Helpers
@@ -237,23 +246,17 @@ async function uploadAllData() {
 // =====================
 
 window.switchTab = (tabId) => {
-    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-    
-    const target = document.getElementById(tabId);
-    if (target) target.classList.add('active');
-    
-    const navItem = document.getElementById('nav-' + tabId);
-    if (navItem) navItem.classList.add('active');
-    
-    // Header Back Arrow Toggle
-    const backBtn = document.getElementById('backBtn');
-    if (backBtn) {
-        backBtn.style.display = (tabId === 'settings') ? 'flex' : 'none';
-        if (typeof lucide !== 'undefined') lucide.createIcons();
+    // Legacy switchTab now redirects for multi-page
+    const pageMap = {
+        'home': 'index.html',
+        'mileage-tab': 'mileage.html',
+        'expenses-tab': 'expense.html',
+        'insights-tab': 'insights.html',
+        'settings': 'settings.html'
+    };
+    if (pageMap[tabId]) {
+        window.location.href = pageMap[tabId];
     }
-    
-    render();
 };
 
 let renderTimeout = null;
@@ -266,32 +269,49 @@ function render() {
 }
 
 function performRender() {
-    console.log("--- Starting Render Cycle ---");
+    console.log("--- Starting Render Cycle [Page: " + getCurrentPage() + "] ---");
     const safeRun = (name, fn) => {
         try {
             fn();
         } catch (err) {
-            console.error(`Render Error [${name}]:`, err);
+            // Silently fail if elements are missing (expected in multi-page)
+            console.debug(`Render Skip [${name}]: Element not on this page.`);
         }
     };
 
-    safeRun("Dashboard", updateDashboard);
-    safeRun("RideUI", updateRideUI);
-    safeRun("PetrolUI", updatePetrolUI);
-    safeRun("ExpenseUI", updateExpenseUI);
-    safeRun("InsightsUI", updateInsightsUI);
-    safeRun("SettingsUI", updateSettingsUI);
+    const page = getCurrentPage();
+    
+    if (page === 'home') safeRun("Dashboard", updateDashboard);
+    if (page === 'mileage') safeRun("PetrolUI", updatePetrolUI);
+    if (page === 'expense') safeRun("ExpenseUI", updateExpenseUI);
+    if (page === 'insights') safeRun("InsightsUI", updateInsightsUI);
+    if (page === 'settings') safeRun("SettingsUI", updateSettingsUI);
+    
+    // Global components
     safeRun("Charts", initCharts);
     safeRun("Icons", safeCreateIcons);
     
-    // Final delay-synced icon check
+    // Sync navbar active state
+    document.querySelectorAll('.nav-item').forEach(nav => {
+        nav.classList.remove('active');
+        const href = nav.getAttribute('href');
+        if (href && (window.location.pathname.endsWith(href) || (href === 'index.html' && page === 'home'))) {
+            nav.classList.add('active');
+        }
+    });
+
     setTimeout(safeCreateIcons, 500);
 }
 
 function updateDashboard() {
     const totalEarn = rides.reduce((sum, r) => sum + (parseFloat(r.earnings) || 0), 0);
     const totalDist = rides.reduce((sum, r) => sum + ((parseFloat(r.endKM) || 0) - (parseFloat(r.startKM) || 0)), 0);
+    const totalFuel = petrols.reduce((sum, p) => sum + (parseFloat(p.cost) || 0), 0);
+    const totalExp = expenses.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
     
+    const netWorth = totalEarn - totalFuel - totalExp;
+    setText('netWorth', formatCurrency(netWorth));
+
     setText('earn', formatCurrency(totalEarn));
     setText('distance', `${formatNumber(totalDist, 1)} km`);
     
@@ -301,16 +321,17 @@ function updateDashboard() {
     const latestMileage = petrols.length > 0 ? calculateMileage(petrols.length - 1) : 0;
     setText('mileage', `${formatNumber(latestMileage, 2)} km/l`);
 
-    // Goal Progress
-    const currentProgress = (totalEarn / (parseFloat(settings.monthlyGoal) || 8000)) * 100;
+    // Goal Progress (based on Net Worth)
+    const currentProgress = (netWorth / (parseFloat(settings.monthlyGoal) || 8000)) * 100;
     const bar = document.getElementById('bar');
-    if (bar) bar.style.width = Math.min(currentProgress, 100) + '%';
-    setText('savingsText', `${formatCurrency(totalEarn)} / ${formatCurrency(settings.monthlyGoal)}`);
+    if (bar) bar.style.width = Math.max(0, Math.min(currentProgress, 100)) + '%';
+    setText('savingsText', `${formatCurrency(netWorth)} / ${formatCurrency(settings.monthlyGoal)}`);
     
     // Projections
-    const daysLeft = 31 - new Date().getDate(); // Better month estimation
-    const needed = Math.max(0, (parseFloat(settings.monthlyGoal) || 8000) - totalEarn);
-    const dailyNeed = daysLeft > 0 ? (needed / daysLeft) : 0;
+    const daysInMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
+    const daysLeft = Math.max(1, daysInMonth - new Date().getDate());
+    const needed = Math.max(0, (parseFloat(settings.monthlyGoal) || 8000) - netWorth);
+    const dailyNeed = needed / daysLeft;
     setText('dailyNeed', formatCurrency(dailyNeed));
     setText('projection', daysLeft);
 
@@ -445,6 +466,16 @@ function updateExpenseUI() {
     if (!tbody) return;
     tbody.innerHTML = '';
     
+    const totalExp = expenses.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
+    setText('totalExpenseHero', formatCurrency(totalExp));
+
+    // Budget Usage calculation
+    const goal = parseFloat(settings.monthlyGoal) || 8000;
+    const usagePercent = Math.min((totalExp / goal) * 100, 100);
+    const useBar = document.getElementById('expenseBar');
+    if (useBar) useBar.style.width = usagePercent + '%';
+    setText('budgetUsageText', formatNumber(usagePercent, 0) + '%');
+
     expenses.forEach(e => {
         const tr = document.createElement('tr');
         tr.innerHTML = `

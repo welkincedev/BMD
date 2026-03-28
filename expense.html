@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Expenses - BMD</title>
+  <link rel="stylesheet" href="style.css?v=1.3">
+</head>
+<body>
+
+<!-- Login Screen (Global) -->
+<div class="login-screen" id="loginScreen">
+  <div class="login-card card">
+    <div class="rider-icon" style="font-size: 3.5rem; margin-bottom: 20px;">🏍️</div>
+    <div class="logo">BMD</div>
+    <p class="subtitle">Track. Ride. Earn.</p>
+    <button onclick="login()" class="google-btn">
+      <img src="https://www.gstatic.com/images/branding/googleg/1x/googleg_standard_color_128dp.png" class="google-logo" alt="Google">
+      Continue with Google
+    </button>
+  </div>
+</div>
+
+<div class="app-container">
+  <header class="header">
+    <div class="logo">💸 Expenses</div>
+    <a href="settings.html" class="settings-btn" aria-label="Settings">
+      <i data-lucide="settings"></i>
+    </a>
+  </header>
+
+  <main class="content">
+    <section id="expenses-page" class="page-content">
+      <!-- Net Worth Highlight Card -->
+      <div class="hero-card hero-expense">
+        <p class="label">Total Expenses</p>
+        <h2 id="totalExpenseHero" class="value-large">₹0.00</h2>
+        <div class="progress-container" style="margin-top: 15px;">
+          <div class="progress-label">
+            <span style="font-size: 0.75rem;">Budget Usage</span>
+            <span id="budgetUsageText" style="font-size: 0.75rem;">0%</span>
+          </div>
+          <div class="progress-bg">
+            <div id="expenseBar" class="progress-fill" style="background: var(--danger);"></div>
+          </div>
+        </div>
+        <div class="hero-icon"><i data-lucide="wallet"></i></div>
+      </div>
+
+      <!-- Add Expense Card -->
+      <div class="card glass-card">
+        <h3 style="margin-bottom: 15px; font-size: 1rem; display: flex; align-items: center; gap: 8px;">
+          <i data-lucide="plus-circle" style="color: var(--danger); width: 18px;"></i> Log Expense
+        </h3>
+        <form id="expenseForm">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div class="form-group">
+              <label>Category</label>
+              <select id="expenseCategory">
+                <option value="Food">Food</option>
+                <option value="Maintenance">Maintenance</option>
+                <option value="Fuel (Extra)">Fuel (Extra)</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Amount (₹)</label>
+              <input type="number" id="expenseAmount" placeholder="Amount" required>
+            </div>
+          </div>
+          <button type="submit" class="btn-primary" style="background: var(--danger);">Log Expense</button>
+        </form>
+      </div>
+
+      <!-- Expense Distribution -->
+      <div class="card glass-card">
+        <h3 style="margin-bottom: 15px; font-size: 1rem;">Expense Distribution</h3>
+        <div class="chart-container pie-container" style="height: 220px;">
+          <canvas id="expensePieChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Expense History Table -->
+      <div class="card glass-card">
+        <h3 style="margin-bottom: 10px; font-size: 1rem;">Recent Expenses</h3>
+        <div class="scroll-x">
+          <table class="premium-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Category</th>
+                <th>Amount</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="expenseTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <nav class="bottom-nav">
+    <a href="index.html" class="nav-item" id="nav-home">
+      <i data-lucide="home"></i>
+      <span>Home</span>
+    </a>
+    <a href="mileage.html" class="nav-item" id="nav-mileage">
+      <i data-lucide="fuel"></i>
+      <span>Mileage</span>
+    </a>
+    <a href="expense.html" class="nav-item active" id="nav-expenses">
+      <i data-lucide="wallet"></i>
+      <span>Expenses</span>
+    </a>
+    <a href="insights.html" class="nav-item" id="nav-insights">
+      <i data-lucide="bar-chart-3"></i>
+      <span>Insights</span>
+    </a>
+  </nav>
+</div>
+
+<!-- Dependencies -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<script type="module" src="app.js?v=1.5"></script>
+</body>
+</html>

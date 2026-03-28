@@ -1,96 +1,133 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mileage</title>
-<link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mileage - BMD</title>
+  <link rel="stylesheet" href="style.css?v=1.3">
 </head>
 <body>
 
-<!-- Login Screen -->
+<!-- Login Screen (Global) -->
 <div class="login-screen" id="loginScreen">
   <div class="login-card card">
     <div class="rider-icon" style="font-size: 3.5rem; margin-bottom: 20px;">🏍️</div>
     <div class="logo">BMD</div>
     <p class="subtitle">Track. Ride. Earn.</p>
-    <button onclick="login()" class="google-btn" aria-label="Login with Google">
+    <button onclick="login()" class="google-btn">
       <img src="https://www.gstatic.com/images/branding/googleg/1x/googleg_standard_color_128dp.png" class="google-logo" alt="Google">
       Continue with Google
     </button>
   </div>
 </div>
 
-<div class="app">
-  <header class="header">⛽ Mileage</header>
+<div class="app-container">
+  <header class="header">
+    <div class="logo">⛽ Mileage</div>
+    <a href="settings.html" class="settings-btn" aria-label="Settings">
+      <i data-lucide="settings"></i>
+    </a>
+  </header>
+
   <main class="content">
-
-    <!-- Petrol Entry -->
-    <div class="card">
-      <h3 style="margin-bottom: 15px;">New Petrol Entry</h3>
-      <p id="lastKMDisplay" style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">Previous Odometer: 0 km</p>
-      <form id="petrolForm">
-        <div class="form-group">
-          <label>Current Odometer Reading (KM)</label>
-          <input type="number" id="petrolKM" placeholder="e.g. 5420" required>
-        </div>
-        <div class="grid">
-          <div class="form-group">
-            <label>Litres</label>
-            <input type="number" id="litres" step="0.01" placeholder="e.g. 5.2" required>
-          </div>
-          <div class="form-group">
-            <label>Cost (₹)</label>
-            <input type="number" id="cost" placeholder="e.g. 550" required>
-          </div>
-        </div>
-        <button type="submit">Add Fuel Entry</button>
-      </form>
-    </div>
-
-    <!-- Fuel History -->
-    <div class="card">
-      <h3 style="margin-bottom: 10px; font-size: 1rem;">Fuel History</h3>
-      <div class="scroll-x">
-        <table>
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>KM</th>
-              <th>Litres</th>
-              <th>Mileage</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody id="petrolTable"></tbody>
-        </table>
+    <section id="mileage-page" class="page-content">
+      <!-- Top Hero Summary Card -->
+      <div class="hero-card hero-mileage">
+        <p class="label">Fuel Efficiency</p>
+        <h2 id="mileageHero" class="value-large">0.00</h2>
+        <p class="label" style="font-size: 0.75rem; margin-bottom: 5px;">Avg Expense per KM</p>
+        <div class="sub-value" id="expenseHero">₹0.00</div>
+        <div class="hero-icon"><i data-lucide="fuel"></i></div>
       </div>
-    </div>
 
-    <!-- Mileage Chart -->
-    <div class="card">
-      <h3 style="margin-bottom: 15px; font-size: 1rem;">Mileage Performance</h3>
-      <div class="chart-container">
-        <canvas id="mileageChart"></canvas>
+      <div class="grid">
+        <!-- New Petrol Entry Card -->
+        <div class="card glass-card">
+          <h3 style="margin-bottom: 12px; font-size: 0.95rem; display: flex; align-items: center; gap: 8px;">
+            <i data-lucide="plus-circle" style="color: var(--primary); width: 18px;"></i> Fuel Entry
+          </h3>
+          <form id="petrolForm">
+            <div class="form-group">
+              <label style="font-size: 0.75rem;">KM Reading</label>
+              <input type="number" id="petrolKM" step="0.1" placeholder="e.g. 5420" required>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+              <div class="form-group">
+                <label style="font-size: 0.75rem;">Litres</label>
+                <input type="number" id="litres" step="0.01" placeholder="5.2" required>
+              </div>
+              <div class="form-group">
+                <label style="font-size: 0.75rem;">Cost (₹)</label>
+                <input type="number" id="cost" placeholder="550" required>
+              </div>
+            </div>
+            <button type="submit" class="btn-primary">Add Entry</button>
+          </form>
+        </div>
+
+        <!-- Initial Odometer Card -->
+        <div class="card glass-card">
+          <h3 style="margin-bottom: 5px; font-size: 0.95rem; display: flex; align-items: center; gap: 8px;">
+            <i data-lucide="map-pin" style="color: var(--warning); width: 18px;"></i> Initial Odometer
+          </h3>
+          <p style="font-size: 0.7rem; color: var(--text-muted); margin-bottom: 10px;">Used when no fuel logs exist</p>
+          <div class="km-input-row" style="margin-bottom: 10px;">
+            <input type="number" id="initialKMInput" step="0.1" placeholder="0">
+            <button id="saveInitialKM" class="icon-btn-save" aria-label="Save Initial KM">
+              <i data-lucide="check"></i>
+            </button>
+          </div>
+          <p id="lastKMDisplay" style="font-size: 0.75rem; color: var(--secondary); font-weight: 500;">Previous: 0 km</p>
+        </div>
       </div>
-    </div>
 
+      <!-- Mileage Trend Chart Card -->
+      <div class="card glass-card" style="margin-top: 10px;">
+        <h3 style="margin-bottom: 15px; font-size: 1rem; display: flex; align-items: center; gap: 10px;">
+          <i data-lucide="line-chart" style="color: var(--primary)"></i> Mileage Trend (KM/L)
+        </h3>
+        <div class="chart-container" style="height: 180px;">
+          <canvas id="mileageChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Petrol History Table Card -->
+      <div class="card glass-card">
+        <h3 style="margin-bottom: 10px; font-size: 1rem; display: flex; align-items: center; gap: 10px;">
+          <i data-lucide="history" style="color: var(--primary)"></i> Fuel History
+        </h3>
+        <div class="scroll-x">
+          <table class="premium-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>KM</th>
+                <th>L</th>
+                <th>KM/L</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="petrolTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
   </main>
 
   <nav class="bottom-nav">
-    <a href="index.html" class="nav-item">
+    <a href="index.html" class="nav-item" id="nav-home">
       <i data-lucide="home"></i>
       <span>Home</span>
     </a>
-    <a href="mileage.html" class="nav-item active">
+    <a href="mileage.html" class="nav-item active" id="nav-mileage">
       <i data-lucide="fuel"></i>
       <span>Mileage</span>
     </a>
-    <a href="expenses.html" class="nav-item">
+    <a href="expense.html" class="nav-item" id="nav-expenses">
       <i data-lucide="wallet"></i>
       <span>Expenses</span>
     </a>
-    <a href="insights.html" class="nav-item">
+    <a href="insights.html" class="nav-item" id="nav-insights">
       <i data-lucide="bar-chart-3"></i>
       <span>Insights</span>
     </a>
@@ -100,7 +137,6 @@
 <!-- Dependencies -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://unpkg.com/lucide@latest"></script>
-<!-- App logic (Modular) -->
 <script type="module" src="app.js?v=1.5"></script>
 </body>
 </html>

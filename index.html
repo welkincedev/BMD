@@ -21,30 +21,58 @@
   </div>
 </div>
 
-<div class="app">
+<div class="app-container">
   <header class="header">
     <div class="logo">BMD</div>
     <div style="display: flex; align-items: center; gap: 8px;">
-      <button id="backBtn" onclick="switchTab('home')" class="action-btn" style="display: none; padding: 4px; background: var(--glass); border: 1px solid var(--border); border-radius: 8px; width: 32px; height: 32px; justify-content: center; align-items: center;">
-        <i data-lucide="arrow-left" style="width: 18px; height: 18px;"></i>
-      </button>
-      <button class="settings-btn" onclick="switchTab('settings')" aria-label="Settings">
+      <a href="settings.html" class="settings-btn" aria-label="Settings">
         <i data-lucide="settings"></i>
-      </button>
+      </a>
     </div>
   </header>
 
   <main class="content">
+    <!-- HOME DASHBOARD -->
+    <section id="home" class="page-content">
+      <!-- Hero Card: Net Worth & Goal -->
+      <div class="hero-card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+          <p class="label">Net Worth</p>
+          <h3 id="streak" style="font-size: 0.9rem;">🔥 0 Day Streak</h3>
+        </div>
+        <h2 id="netWorth" class="value-large">₹0.00</h2>
+        
+        <div class="progress-container" style="margin-top: 20px;">
+          <div class="progress-label">
+            <span style="opacity: 0.8;">Monthly Goal Progress</span>
+            <span id="savingsText">₹0 / ₹8000</span>
+          </div>
+          <div class="progress-bg">
+            <div id="bar" class="progress-fill"></div>
+          </div>
+        </div>
 
-    <!-- HOME SCREEN -->
-    <section id="home" class="screen active">
-      <div class="card streak-card">
-        <h3 id="streak">🔥 0 Day Streak</h3>
-        <button class="btn-add" onclick="openRideModal()" aria-label="Add New Ride">
-          <i data-lucide="plus"></i> Add Ride
+        <div style="margin-top: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+          <div>
+            <p class="label" style="font-size: 0.7rem;">Need / Day</p>
+            <h4 id="dailyNeed" style="font-size: 1.1rem; color: #fff;">₹0</h4>
+          </div>
+          <div>
+            <p class="label" style="font-size: 0.7rem;">Projected Days</p>
+            <h4 id="projection" style="font-size: 1.1rem; color: #fff;">0</h4>
+          </div>
+        </div>
+        <div class="hero-icon"><i data-lucide="wallet"></i></div>
+      </div>
+
+      <!-- Quick Action -->
+      <div style="margin-bottom: 24px;">
+        <button class="btn-add" onclick="openRideModal()" style="width: 100%; justify-content: center; padding: 18px; border-radius: 20px;">
+          <i data-lucide="plus"></i> Log Today's Ride
         </button>
       </div>
 
+      <!-- Stats Grid -->
       <div class="grid">
         <div class="card stat-card card-green">
           <p>Total Earnings</p>
@@ -55,7 +83,7 @@
           <p>Distance</p>
           <h3 id="distance">0 km</h3>
         </div>
-        <div class="card stat-card card-blue">
+        <div class="card stat-card card-purple">
           <p>Mileage</p>
           <h3 id="mileage">0 km/l</h3>
         </div>
@@ -65,265 +93,37 @@
         </div>
       </div>
 
+      <!-- Mini Trend -->
       <div class="card">
-        <div class="progress-label">
-          <span>Monthly Goal Progress</span>
-          <span id="savingsText">₹0 / ₹8000</span>
-        </div>
-        <div class="progress-bg">
-          <div id="bar" class="progress-fill"></div>
-        </div>
-        <div style="margin-top: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 0.85rem;">
-          <div>
-            <p style="color: var(--text-muted)">Need / Day</p>
-            <h4 id="dailyNeed" style="color: var(--primary)">₹0</h4>
-          </div>
-          <div>
-            <p style="color: var(--text-muted)">Projected Days</p>
-            <h4 id="projection" style="color: var(--secondary)">0</h4>
-          </div>
-        </div>
-      </div>
-
-      <div class="card">
-        <h3 style="margin-bottom: 15px; font-size: 1.1rem; display: flex; align-items: center; gap: 10px;">
-          <i data-lucide="line-chart" style="color: var(--primary)"></i> Earnings Trend
+        <h3 style="margin-bottom: 15px; font-size: 1rem; display: flex; align-items: center; gap: 10px;">
+          <i data-lucide="line-chart" style="color: var(--primary)"></i> Weekly Earnings
         </h3>
-        <div class="chart-container">
+        <div class="chart-container" style="height: 180px;">
           <canvas id="homeWeeklyChart"></canvas>
         </div>
       </div>
-
-      <div class="card">
-        <h3 style="margin-bottom: 10px; font-size: 1rem; display: flex; align-items: center; gap: 10px;">
-          <i data-lucide="history" style="color: var(--primary)"></i> Recent Rides
-        </h3>
-        <div class="scroll-x">
-          <table>
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Start</th>
-                <th>End</th>
-                <th>Earn</th>
-                <th>Dist</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody id="rideTable"></tbody>
-          </table>
-        </div>
-      </div>
     </section>
-
-    <!-- MILEAGE SCREEN -->
-    <section id="mileage-tab" class="screen">
-      <!-- Top Hero Summary Card -->
-      <div class="hero-card">
-        <p class="label">Fuel Efficiency</p>
-        <h2 id="mileageHero" class="value-large">0.00</h2>
-        <p class="label" style="font-size: 0.75rem; margin-bottom: 5px;">Avg Expense per KM</p>
-        <div class="sub-value" id="expenseHero">₹0.00</div>
-        <div class="hero-icon"><i data-lucide="fuel"></i></div>
-      </div>
-
-      <div class="grid">
-        <!-- New Petrol Entry Card -->
-        <div class="card" style="padding: 16px;">
-          <h3 style="margin-bottom: 12px; font-size: 0.95rem; display: flex; align-items: center; gap: 8px;">
-            <i data-lucide="plus-circle" style="color: var(--primary); width: 18px;"></i> Fuel Entry
-          </h3>
-          <form id="petrolForm">
-            <div class="form-group">
-              <label style="font-size: 0.75rem;">KM Reading</label>
-              <input type="number" id="petrolKM" step="0.1" placeholder="e.g. 5420" required style="padding: 10px; border-radius: 12px;">
-            </div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-              <div class="form-group">
-                <label style="font-size: 0.75rem;">Litres</label>
-                <input type="number" id="litres" step="0.01" placeholder="5.2" required style="padding: 10px; border-radius: 12px;">
-              </div>
-              <div class="form-group">
-                <label style="font-size: 0.75rem;">Cost (₹)</label>
-                <input type="number" id="cost" step="0.01" placeholder="550" required style="padding: 10px; border-radius: 12px;">
-              </div>
-            </div>
-            <button type="submit" style="padding: 12px; border-radius: 12px; font-size: 0.9rem;">Add Entry</button>
-          </form>
-        </div>
-
-        <!-- Initial Odometer Card -->
-        <div class="card" style="padding: 16px;">
-          <h3 style="margin-bottom: 5px; font-size: 0.95rem; display: flex; align-items: center; gap: 8px;">
-            <i data-lucide="map-pin" style="color: var(--warning); width: 18px;"></i> Initial Odometer
-          </h3>
-          <p style="font-size: 0.7rem; color: var(--text-muted); margin-bottom: 10px;">Used when no fuel logs exist</p>
-          <div class="km-input-row" style="margin-bottom: 10px;">
-            <input type="number" id="initialKMInput" step="0.1" placeholder="0" style="padding: 11px; border-radius: 12px; font-size: 0.9rem;">
-            <button id="saveInitialKM" class="icon-btn" aria-label="Save Initial KM" style="width: 44px; height: 44px; border-radius: 12px;">
-              <i data-lucide="check"></i>
-            </button>
-          </div>
-          <p id="lastKMDisplay" style="font-size: 0.75rem; color: var(--secondary); font-weight: 500;">Previous: 0 km</p>
-        </div>
-      </div>
-
-      <!-- Mileage Trend Chart Card -->
-      <div class="card" style="margin-top: 10px;">
-        <h3 style="margin-bottom: 15px; font-size: 1rem; display: flex; align-items: center; gap: 10px;">
-          <i data-lucide="line-chart" style="color: var(--primary)"></i> Mileage Trend (KM/L)
-        </h3>
-        <div class="chart-container" style="height: 180px;">
-          <canvas id="mileageChart"></canvas>
-        </div>
-      </div>
-
-      <!-- Petrol History Table Card -->
-      <div class="card">
-        <h3 style="margin-bottom: 10px; font-size: 1rem; display: flex; align-items: center; gap: 10px;">
-          <i data-lucide="history" style="color: var(--primary)"></i> Fuel History
-        </h3>
-        <div class="scroll-x">
-          <table class="premium-table">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>KM</th>
-                <th>L</th>
-                <th>KM/L</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody id="petrolTable"></tbody>
-          </table>
-        </div>
-      </div>
-    </section>
-
-    <!-- EXPENSES SCREEN -->
-    <section id="expenses-tab" class="screen">
-      <div class="card">
-        <h3 style="margin-bottom: 15px;">Add Expense</h3>
-        <form id="expenseForm">
-          <div class="grid">
-            <div class="form-group">
-              <label>Category</label>
-              <select id="expenseCategory" style="width: 100%; padding: 14px; background: rgba(15, 23, 42, 0.5); border: 1px solid var(--border); border-radius: 16px; color: var(--text); font-family: inherit;">
-                <option value="Food">Food</option>
-                <option value="Maintenance">Maintenance</option>
-                <option value="Other">Other</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>Amount (₹)</label>
-              <input type="number" id="expenseAmount" step="0.01" placeholder="Amount" required>
-            </div>
-          </div>
-          <button type="submit" aria-label="Log Expense">Log Expense</button>
-        </form>
-      </div>
-
-      <div class="card">
-        <h3 style="margin-bottom: 15px;">Expense Distribution</h3>
-        <div class="chart-container pie-container">
-          <canvas id="expensePieChart"></canvas>
-        </div>
-      </div>
-
-      <div class="card">
-        <h3 style="margin-bottom: 10px; font-size: 1rem;">Recent Expenses</h3>
-        <div class="scroll-x">
-          <table>
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Item</th>
-                <th>Cost</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody id="expenseTable"></tbody>
-          </table>
-        </div>
-      </div>
-    </section>
-
-    <!-- INSIGHTS SCREEN -->
-    <section id="insights-tab" class="screen">
-      <div class="card">
-        <h3 style="margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
-          <i data-lucide="zap" style="color: var(--warning)"></i> Financial Summary
-        </h3>
-        <div class="insights-grid" id="financial-metrics">
-          <!-- Cards injected by JS -->
-        </div>
-      </div>
-
-      <div class="card">
-        <h3 style="margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
-          <i data-lucide="sparkles" style="color: var(--primary)"></i> Smart Insights
-        </h3>
-        <div id="insightList">
-          <!-- Insights injected here -->
-        </div>
-      </div>
-
-      <div class="card">
-        <h3 style="margin-bottom: 15px;">Earnings vs Expenses</h3>
-        <div class="chart-container">
-          <canvas id="insightComparisonChart"></canvas>
-        </div>
-      </div>
-    </section>
-
-    <!-- SETTINGS SCREEN -->
-    <section id="settings" class="screen">
-      <div class="card">
-        <h3 style="margin-bottom: 20px;">Configuration</h3>
-        <div class="form-group">
-          <label>Monthly Savings Goal (₹)</label>
-          <input type="number" id="monthlyGoalInput" step="0.01" placeholder="8000">
-        </div>
-        <div class="form-group">
-          <label>Automated Savings %</label>
-          <input type="number" id="savingsPercentInput" step="0.01" placeholder="30">
-        </div>
-        <button onclick="saveSettings()" aria-label="Save Configuration">Save Configuration</button>
-      </div>
-
-      <div class="card card-orange">
-        <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 15px;">Log out, export your data, or reset local database.</p>
-        <button onclick="logout()" class="btn-danger" aria-label="Logout" style="margin-bottom: 10px;">Logout from Google</button>
-        <button onclick="exportData()" class="btn-back" style="width: 100%; justify-content: center; margin-bottom: 10px; background: var(--glass); border: 1px solid var(--border);">
-          <i data-lucide="download"></i> Download Backup (JSON)
-        </button>
-        <button onclick="openDeleteModal()" class="btn-danger" style="background: linear-gradient(135deg, #ef4444, #7f1d1d); border: 1px solid rgba(255, 255, 255, 0.1);" aria-label="Delete All Data">Delete All Data</button>
-        <p style="color: var(--danger); font-size: 0.75rem; margin-top: 10px; text-align: center; opacity: 0.8;">⚠️ This action is irreversible</p>
-      </div>
-    </section>
-
   </main>
 
-  <!-- Bottom Navigation -->
+  <!-- Global Bottom Navigation -->
   <nav class="bottom-nav">
-    <div class="nav-item active" onclick="switchTab('home')" id="nav-home" aria-label="Go to Home">
+    <a href="index.html" class="nav-item active" id="nav-home">
       <i data-lucide="home"></i>
       <span>Home</span>
-    </div>
-    <div class="nav-item" onclick="switchTab('mileage-tab')" id="nav-mileage-tab" aria-label="Go to Mileage">
+    </a>
+    <a href="mileage.html" class="nav-item" id="nav-mileage">
       <i data-lucide="fuel"></i>
       <span>Mileage</span>
-    </div>
-    <div class="nav-item" onclick="switchTab('expenses-tab')" id="nav-expenses-tab" aria-label="Go to Expenses">
+    </a>
+    <a href="expense.html" class="nav-item" id="nav-expenses">
       <i data-lucide="wallet"></i>
       <span>Expenses</span>
-    </div>
-    <div class="nav-item" onclick="switchTab('insights-tab')" id="nav-insights-tab" aria-label="Go to Insights">
+    </a>
+    <a href="insights.html" class="nav-item" id="nav-insights">
       <i data-lucide="bar-chart-3"></i>
       <span>Insights</span>
-    </div>
+    </a>
   </nav>
-
 </div>
 
 <!-- Ride Modal -->

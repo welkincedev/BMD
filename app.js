@@ -65,6 +65,14 @@ window.setHtml = (id, val) => {
 window.formatCurrency = (val) => "₹" + (parseFloat(val) || 0).toFixed(2);
 window.formatNumber = (val, dec = 2) => (parseFloat(val) || 0).toFixed(dec);
 
+window.getPreviousOdometer = () => {
+    if (petrols.length === 0) {
+        return parseFloat(settings.initialKM) || 0;
+    }
+    // petrols are sorted by KM asc in snapshot
+    return parseFloat(petrols[petrols.length - 1].km) || 0;
+};
+
 // Safe Icon Creation
 const safeCreateIcons = () => {
     try {
@@ -241,6 +249,7 @@ function performRender() {
     };
 
     safeRun("Dashboard", updateDashboard);
+    safeRun("RideUI", updateRideUI);
     safeRun("PetrolUI", updatePetrolUI);
     safeRun("ExpenseUI", updateExpenseUI);
     safeRun("InsightsUI", updateInsightsUI);
@@ -301,8 +310,37 @@ function updatePetrolUI() {
         tbody.appendChild(tr);
     });
 
-    const lastKM = petrols.length > 0 ? (parseFloat(petrols[petrols.length-1].km) || 0) : (parseFloat(settings.initialKM) || 0);
+    const lastKM = getPreviousOdometer();
     setText('lastKMDisplay', `Previous Odometer: ${formatNumber(lastKM, 1)} km`);
+}
+
+function updateRideUI() {
+    const tbody = document.getElementById('rideTable');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    if (rides.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--text-muted); padding: 20px;">No rides yet</td></tr>';
+    } else {
+        // Show last 10 rides
+        const recentRides = [...rides].sort((a,b) => new Date(b.date) - new Date(a.date)).slice(0, 10);
+        recentRides.forEach(r => {
+            const dist = (parseFloat(r.endKM) || 0) - (parseFloat(r.startKM) || 0);
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${new Date(r.date || Date.now()).toLocaleDateString()}</td>
+                <td>${formatNumber(r.startKM, 1)}</td>
+                <td>${formatNumber(r.endKM, 1)}</td>
+                <td>${formatCurrency(r.earnings)}</td>
+                <td>${formatNumber(dist, 1)} km</td>
+                <td><button class="action-btn" onclick="deleteEntry('ride', '${r.id}')">×</button></td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    const lastKM = getPreviousOdometer();
+    setText('lastRideKMDisplay', `Previous Odometer: ${formatNumber(lastKM, 1)} km`);
 }
 
 function updateSettingsUI() {

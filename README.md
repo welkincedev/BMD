@@ -63,7 +63,3 @@ Built with a **premium gradient UI + glassmorphism design**, BMD helps riders un
 - **Charts:** Chart.js
 - **Storage:** LocalStorage (Firebase-ready)
 - **Design:** Glassmorphism + Gradient UI
-
----
-
-## 📂 Project Structure

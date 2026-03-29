@@ -25,18 +25,23 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-body {
+html, body {
   margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+body {
   font-family: 'Outfit', sans-serif;
   background: linear-gradient(90deg, #000328, #00458e) !important;
   background-attachment: fixed;
   color: var(--text);
-  min-height: 100vh;
-  min-height: 100dvh;
+  min-height: 100%;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Auth & Login Gate */
@@ -175,12 +180,12 @@ body.auth-resolved:not(.logged-in) .login-screen {
   max-width: 420px;
   margin: 0 auto;
   width: 100%;
-  min-height: 100vh;
-  min-height: 100dvh;
+  min-height: 100%;
   background: rgba(15, 23, 42, 0.6);
   position: relative;
   display: flex;
   flex-direction: column;
+  box-sizing: border-box;
 }
 
 .header {
@@ -225,14 +230,18 @@ body.auth-resolved:not(.logged-in) .login-screen {
 
 .content {
   flex: 1;
-  padding: 20px 16px;
-  padding-top: 80px;
-  padding-bottom: 120px;
-  overflow-y: auto;
+  width: 100%;
+  padding-top: 80px; /* Space for fixed header */
+}
+
+.page-content {
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: 16px;
+  padding-bottom: 110px; /* Space for navbar */
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  width: 100%;
-  -webkit-overflow-scrolling: touch;
 }
 
 /* Screen Transitions */
@@ -281,7 +290,7 @@ body.auth-resolved:not(.logged-in) .login-screen {
   padding: 30px 24px;
   border-radius: 32px;
   position: relative;
-  overflow: hidden;
+  overflow-x: hidden;  -webkit-overflow-scrolling: touch;
   box-shadow: var(--premium-shadow);
   border: 1px solid rgba(255, 255, 255, 0.2);
   margin-bottom: 24px;
@@ -461,7 +470,7 @@ body.auth-resolved:not(.logged-in) .login-screen {
   height: 12px;
   background: rgba(255, 255, 255, 0.05);
   border-radius: 10px;
-  overflow: hidden;
+  overflow-x: hidden;  -webkit-overflow-scrolling: touch;
   border: 1px solid var(--border);
 }
 
@@ -572,11 +581,11 @@ button:active {
   max-width: 420px;
   display: flex;
   justify-content: space-around;
-  background: rgba(15, 23, 42, 0.9);
+  background: rgba(15, 23, 42, 0.95);
   backdrop-filter: blur(24px);
   padding: 12px 10px 25px 10px;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
-  z-index: 1000;
+  z-index: 2000;
 }
 
 .nav-item {
@@ -804,7 +813,7 @@ body.loading::after {
   padding: 24px;
   margin-bottom: 24px;
   color: white;
-  overflow: hidden;
+  overflow-x: hidden;  -webkit-overflow-scrolling: touch;
   box-shadow: 0 10px 25px rgba(16, 185, 129, 0.2);
 }
 
